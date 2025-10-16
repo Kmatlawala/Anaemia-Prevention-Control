@@ -50,10 +50,15 @@ router.get('/with-data', authenticateToken, async (req, res) => {
         s.created_at as last_screening_date,
         i.id as intervention_id,
         i.ifa_yes as intervention_ifa_yes,
+        i.ifa_quantity as intervention_ifa_quantity,
         i.calcium_yes as intervention_calcium_yes,
+        i.calcium_quantity as intervention_calcium_quantity,
         i.deworm_yes as intervention_deworm_yes,
+        i.deworming_date as intervention_deworming_date,
         i.therapeutic_yes as intervention_therapeutic_yes,
+        i.therapeutic_notes as intervention_therapeutic_notes,
         i.referral_yes as intervention_referral_yes,
+        i.referral_facility as intervention_referral_facility,
         i.created_at as last_intervention_date
       FROM beneficiaries b
       LEFT JOIN (
@@ -65,7 +70,9 @@ router.get('/with-data', authenticateToken, async (req, res) => {
         )
       ) s ON b.short_id = s.beneficiary_id
       LEFT JOIN (
-        SELECT beneficiary_id, id, ifa_yes, calcium_yes, deworm_yes, therapeutic_yes, referral_yes, created_at
+        SELECT beneficiary_id, id, ifa_yes, ifa_quantity, calcium_yes, calcium_quantity, 
+               deworm_yes, deworming_date, therapeutic_yes, therapeutic_notes, 
+               referral_yes, referral_facility, created_at
         FROM interventions i1
         WHERE i1.id = (
           SELECT MAX(i2.id) FROM interventions i2 
@@ -270,7 +277,7 @@ router.get('/unique/:uniqueId', authenticateToken, async (req, res) => {
 router.post('/:id/screenings', authenticateToken, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    const { beneficiary_id, hemoglobin, notes, doctor_name, anemia_category } = req.body;
+    const { beneficiary_id, hemoglobin, notes, doctor_name, anemia_category, pallor, visit_type, severity } = req.body;
     
     // Validate beneficiary ID
     if (!id || isNaN(id)) {
@@ -283,14 +290,14 @@ router.post('/:id/screenings', authenticateToken, async (req, res) => {
       return res.status(404).json({ error: 'Beneficiary not found' });
     }
     
-    console.log('[screenings:create] body', { beneficiary_id: id, hemoglobin, notes, doctor_name, anemia_category });
+    console.log('[screenings:create] body', { beneficiary_id: beneficiary[0].short_id, hemoglobin, notes, doctor_name, anemia_category, pallor, visit_type, severity });
     
     // Handle notes - convert array to string or null
     const notesValue = Array.isArray(notes) && notes.length > 0 ? notes.join(', ') : null;
     
     const [r] = await pool.query(
-      'INSERT INTO screenings (beneficiary_id, doctor_name, hemoglobin, anemia_category, notes) VALUES (?,?,?,?,?)',
-      [beneficiary[0].short_id, doctor_name || null, hemoglobin || null, anemia_category || null, notesValue]
+      'INSERT INTO screenings (beneficiary_id, doctor_name, hemoglobin, anemia_category, pallor, visit_type, severity, notes) VALUES (?,?,?,?,?,?,?,?)',
+      [beneficiary[0].short_id, doctor_name || null, hemoglobin || null, anemia_category || null, pallor || null, visit_type || null, severity || null, notesValue]
     );
     console.log('[screenings:create] created', { id: r.insertId });
     res.status(201).json({ id: r.insertId });

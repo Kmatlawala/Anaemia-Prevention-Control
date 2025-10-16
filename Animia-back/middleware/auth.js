@@ -22,7 +22,17 @@ const authenticateToken = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    // Check if user still exists in database
+    // Handle patient users (no database check needed)
+    if (decoded.type === 'patient') {
+      req.user = {
+        id: decoded.id,
+        role: decoded.role || 'Patient',
+        type: 'patient'
+      };
+      return next();
+    }
+    
+    // Handle admin users (check database)
     const [rows] = await pool.query('SELECT id, username FROM admins WHERE id = ?', [decoded.id]);
     
     if (!rows.length) {

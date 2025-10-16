@@ -6,6 +6,7 @@ const beneficiariesRouter = require('./routes/beneficiaries');
 const reportsRouter = require('./routes/reports');
 const notificationsRouter = require('./routes/notifications');
 const devicesRouter = require('./routes/devices');
+const syncRouter = require('./routes/sync');
 const pool = require('./db');
 
 // Load environment variables
@@ -56,10 +57,12 @@ app.get('/', (req, res) => {
 
 // Mount modular routers that use the shared pool via require('../db')
 app.use('/api/auth/admin', adminRouter);
+app.use('/api/auth/patient', require('./routes/patientAuth'));
 app.use('/api/beneficiaries', beneficiariesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/devices', devicesRouter);
+app.use('/api/sync', syncRouter);
 
 // Fallback error logger (in case any middleware uses next(err))
 // Note: Keep after routes
@@ -134,6 +137,9 @@ app.use((err, _req, res, _next) => {
     await ensureColumn('beneficiaries', 'short_id', 'short_id VARCHAR(32) NULL');
     await ensureColumn('screenings', 'anemia_category', 'anemia_category VARCHAR(64) NULL');
     await ensureColumn('screenings', 'doctor_name', 'doctor_name VARCHAR(255) NULL');
+    await ensureColumn('screenings', 'pallor', 'pallor VARCHAR(32) NULL');
+    await ensureColumn('screenings', 'visit_type', 'visit_type VARCHAR(32) NULL');
+    await ensureColumn('screenings', 'severity', 'severity VARCHAR(32) NULL');
 
     await pool.query(`CREATE TABLE IF NOT EXISTS screenings (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -141,6 +147,9 @@ app.use((err, _req, res, _next) => {
       doctor_name VARCHAR(255) NULL,
       hemoglobin DECIMAL(5,2) NULL,
       anemia_category VARCHAR(64) NULL,
+      pallor VARCHAR(32) NULL,
+      visit_type VARCHAR(32) NULL,
+      severity VARCHAR(32) NULL,
       notes TEXT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       INDEX(beneficiary_id)

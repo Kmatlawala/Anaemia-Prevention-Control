@@ -33,10 +33,12 @@ async function sendBeneficiarySMS(phoneNumber, name, type = 'registration', addi
         message = `Hello ${name}, this is a reminder for your follow-up appointment. Please contact us to schedule.`;
         break;
       case 'screening':
-        message = `Hello ${name}, your screening results are ready. Please contact us for details.`;
+        const hbValue = additionalData.hemoglobin || 'N/A';
+        const severity = additionalData.severity || 'N/A';
+        message = `Hello ${name}, your screening is complete. Hb: ${hbValue} g/dL, Severity: ${severity}. ID: ${additionalData.short_id || 'N/A'}. Please contact us for details.`;
         break;
       case 'intervention':
-        message = `Hello ${name}, your intervention plan has been updated. Please follow the prescribed guidelines.`;
+        message = `Hello ${name}, your intervention plan has been updated. ID: ${additionalData.short_id || 'N/A'}. Please follow the prescribed guidelines and contact us if needed.`;
         break;
       default:
         message = `Hello ${name}, this is an update from Animia health program.`;
