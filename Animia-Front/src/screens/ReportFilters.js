@@ -173,7 +173,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     margin: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
@@ -183,7 +184,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
   },
   dateLabel: {color: colors.text, marginBottom: 4},
   dateValue: {color: colors.text},
@@ -191,7 +193,8 @@ const styles = StyleSheet.create({
   resetBtn: {
     flex: 1,
     backgroundColor: 'transparent',
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
@@ -200,7 +203,8 @@ const styles = StyleSheet.create({
   applyBtn: {
     flex: 1,
     backgroundColor: colors.primary,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: 8,
     alignItems: 'center',
   },

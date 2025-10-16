@@ -30,6 +30,494 @@ import {
 } from '../theme/theme';
 import dayjs from 'dayjs';
 import LinearGradient from 'react-native-linear-gradient';
+// Import chart components with proper error handling
+import {
+  PieChart as PieChartComponent,
+  LineChart as LineChartComponent,
+} from 'react-native-chart-kit';
+import {
+  BarChart as GiftedBarChart,
+  LineChart as GiftedLineChart,
+  PieChart as GiftedPieChart,
+} from 'react-native-gifted-charts';
+
+// Create safe wrapper components
+const PieChart = ({data, ...props}) => {
+  console.log('[PieChart] Received data:', JSON.stringify(data, null, 2));
+
+  let pieChartData;
+
+  // Check if data is already in PieChart format (array of objects)
+  if (Array.isArray(data)) {
+    if (data.length === 0) {
+      console.log('[PieChart] No data available (empty array)');
+      return (
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            padding: spacing.md,
+          }}>
+          No data available
+        </Text>
+      );
+    }
+
+    // Data is already in correct format, use it directly
+    console.log('[PieChart] Data is already in correct format, using directly');
+    pieChartData = data;
+  } else if (data && data.labels && data.labels.length > 0) {
+    // Data is in chart-kit format, convert it
+    console.log('[PieChart] Converting data from chart-kit format');
+
+    // Validate data structure for PieChart compatibility
+    if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
+      return (
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            padding: spacing.md,
+          }}>
+          Invalid data format
+        </Text>
+      );
+    }
+
+    // Convert data format for PieChart compatibility
+    pieChartData = data.labels.map((label, index) => ({
+      name: label,
+      population: data.datasets[0].data[index],
+      color: data.datasets[0].colors
+        ? data.datasets[0].colors[index]
+        : colors.primary,
+      legendFontColor: colors.text,
+      legendFontSize: 12,
+    }));
+  } else {
+    console.log('[PieChart] No data or labels available');
+    return (
+      <Text
+        style={{
+          textAlign: 'center',
+          color: colors.textSecondary,
+          padding: spacing.md,
+        }}>
+        No data available
+      </Text>
+    );
+  }
+
+  console.log(
+    '[PieChart] Final data for rendering:',
+    JSON.stringify(pieChartData, null, 2),
+  );
+
+  try {
+    // Convert data format for GiftedPieChart - ensure we have valid numbers
+    const giftedPieData = pieChartData.map(item => {
+      const value = Number(item.population || item.value || 0);
+      return {
+        value: isNaN(value) ? 0 : value,
+        color: item.color || '#2563EB',
+        text: item.name || item.text || 'Unknown',
+      };
+    });
+
+    console.log(
+      '[PieChart] Converted data:',
+      JSON.stringify(giftedPieData, null, 2),
+    );
+
+    return (
+      <View style={{alignItems: 'center'}}>
+        <GiftedPieChart
+          data={giftedPieData}
+          radius={90}
+          innerRadius={50}
+          showText={false}
+          innerCircleColor={colors.background}
+          innerCircleBorderWidth={0}
+          isThreeD={false}
+          showGradient={false}
+          centerLabelComponent={() => {
+            // Find the largest category
+            const largestCategory = giftedPieData.reduce(
+              (max, item) => (item.value > max.value ? item : max),
+              giftedPieData[0],
+            );
+            const total = giftedPieData.reduce(
+              (sum, item) => sum + (item.value || 0),
+              0,
+            );
+            const percentage =
+              total > 0 ? Math.round((largestCategory.value / total) * 100) : 0;
+
+            return (
+              <View style={{alignItems: 'center', justifyContent: 'center'}}>
+                <Text
+                  style={{
+                    fontSize: 28,
+                    fontWeight: '700',
+                    color: largestCategory.color,
+                    textAlign: 'center',
+                  }}>
+                  {percentage}%
+                </Text>
+                <Text
+                  style={{
+                    fontSize: 16,
+                    fontWeight: '600',
+                    color: colors.text,
+                    textAlign: 'center',
+                    marginTop: 4,
+                  }}>
+                  {largestCategory.text}
+                </Text>
+              </View>
+            );
+          }}
+          {...props}
+        />
+
+        {/* Custom Legend */}
+        <View
+          style={{
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            marginTop: spacing.lg,
+            paddingHorizontal: spacing.sm,
+          }}>
+          {giftedPieData.map((item, index) => {
+            const total = giftedPieData.reduce(
+              (sum, cat) => sum + (cat.value || 0),
+              0,
+            );
+            const percentage =
+              total > 0 ? Math.round((item.value / total) * 100) : 0;
+
+            return (
+              <View
+                key={index}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginHorizontal: spacing.sm,
+                  marginVertical: spacing.xs,
+                }}>
+                <View
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 7,
+                    backgroundColor: item.color,
+                    marginRight: spacing.xs,
+                  }}
+                />
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '600',
+                    color: colors.text,
+                  }}>
+                  {item.text}: {percentage}%
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  } catch (error) {
+    console.error('[PieChart] Error rendering chart:', error);
+    return (
+      <View
+        style={{
+          height: 220,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.md,
+          margin: spacing.sm,
+        }}>
+        <Icon name="chart-pie" size={48} color={colors.textSecondary} />
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            padding: spacing.md,
+            fontSize: 16,
+            fontWeight: '600',
+          }}>
+          Pie Chart
+        </Text>
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            paddingHorizontal: spacing.md,
+            fontSize: 14,
+          }}>
+          Unable to render
+        </Text>
+      </View>
+    );
+  }
+};
+
+const BarChart = ({data, ...props}) => {
+  if (!data || !data.labels || data.labels.length === 0) {
+    return (
+      <Text
+        style={{
+          textAlign: 'center',
+          color: colors.textSecondary,
+          padding: spacing.md,
+        }}>
+        No data available
+      </Text>
+    );
+  }
+
+  // Validate data structure for BarChart compatibility
+  if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
+    return (
+      <Text
+        style={{
+          textAlign: 'center',
+          color: colors.textSecondary,
+          padding: spacing.md,
+        }}>
+        Invalid data format
+      </Text>
+    );
+  }
+
+  try {
+    // Convert data to accurate line format
+    const lineData = data.labels.map((label, index) => {
+      let color;
+      switch (label.toLowerCase()) {
+        case 'normal':
+          color = '#10B981'; // Green
+          break;
+        case 'mild':
+          color = '#F59E0B'; // Orange/Yellow
+          break;
+        case 'moderate':
+          color = '#EF4444'; // Red
+          break;
+        case 'severe':
+          color = '#DC2626'; // Dark Red
+          break;
+        case 'unknown':
+          color = '#6B7280'; // Grey
+          break;
+        default:
+          color = '#2563EB'; // Blue
+      }
+
+      // Add emojis based on health status
+      let emoji;
+      switch (label.toLowerCase()) {
+        case 'normal':
+          emoji = '😊'; // Happy face
+          break;
+        case 'mild':
+          emoji = '😐'; // Neutral face
+          break;
+        case 'moderate':
+          emoji = '😟'; // Worried face
+          break;
+        case 'severe':
+          emoji = '😰'; // Anxious face
+          break;
+        case 'unknown':
+          emoji = '?'; // Simple question mark
+          break;
+        default:
+          emoji = '📊'; // Chart emoji
+      }
+
+      return {
+        value: data.datasets[0].data[index],
+        label: label,
+        frontColor: color,
+        topLabelComponent: () => (
+          <View
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: 5,
+              marginLeft: -15,
+              width: 50,
+            }}>
+            <Text
+              style={{
+                fontSize: 18,
+                color: color,
+                textAlign: 'center',
+                lineHeight: 20,
+                width: 20,
+              }}>
+              {emoji}
+            </Text>
+            <Text
+              style={{
+                color: color,
+                fontSize: 11,
+                fontWeight: '600',
+                marginTop: 1,
+                textAlign: 'center',
+                lineHeight: 12,
+                width: 20,
+              }}>
+              {data.datasets[0].data[index]}
+            </Text>
+          </View>
+        ),
+      };
+    });
+
+    return (
+      <GiftedBarChart
+        data={lineData}
+        width={screenWidth - 120}
+        height={280}
+        hideRules={false}
+        hideAxesAndRules={false}
+        xAxisThickness={1}
+        yAxisThickness={1}
+        xAxisColor={colors.border}
+        yAxisColor={colors.border}
+        yAxisTextStyle={{color: colors.primary, fontSize: 12}}
+        xAxisLabelTextStyle={{color: colors.text, fontSize: 12}}
+        noOfSections={5}
+        maxValue={Math.max(...data.datasets[0].data) + 3}
+        minValue={0}
+        stepValue={3}
+        barWidth={40}
+        spacing={25}
+        roundedTop
+        roundedBottom
+        showValuesOnTopOfBars={true}
+        isThreeD={true}
+        isAnimated={true}
+        animationDuration={1000}
+        showGradient={true}
+        gradientColor={colors.primary}
+        {...props}
+      />
+    );
+  } catch (error) {
+    console.error('[BarChart] Error rendering chart:', error);
+    return (
+      <View
+        style={{
+          height: 200,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.md,
+          margin: spacing.sm,
+        }}>
+        <Icon name="chart-area" size={48} color={colors.textSecondary} />
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            padding: spacing.md,
+            fontSize: 16,
+            fontWeight: '600',
+          }}>
+          Area Chart
+        </Text>
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            paddingHorizontal: spacing.md,
+            fontSize: 14,
+          }}>
+          Unable to render
+        </Text>
+      </View>
+    );
+  }
+};
+
+// Area Chart wrapper for health status analysis
+const AreaChart = ({data, ...props}) => {
+  console.log('[AreaChart] Received data:', JSON.stringify(data, null, 2));
+
+  if (!data || !data.labels || data.labels.length === 0) {
+    console.log('[AreaChart] No data or labels available');
+    return (
+      <Text
+        style={{
+          textAlign: 'center',
+          color: colors.textSecondary,
+          padding: spacing.md,
+        }}>
+        No data available
+      </Text>
+    );
+  }
+
+  // Validate data structure for AreaChart compatibility
+  if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
+    console.log('[AreaChart] Invalid data structure');
+    return (
+      <Text
+        style={{
+          textAlign: 'center',
+          color: colors.textSecondary,
+          padding: spacing.md,
+        }}>
+        Invalid data format
+      </Text>
+    );
+  }
+
+  try {
+    return <LineChartComponent data={data} {...props} />;
+  } catch (error) {
+    console.error('[AreaChart] Error rendering chart:', error);
+    return (
+      <View
+        style={{
+          height: 200,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: colors.surface,
+          borderRadius: borderRadius.md,
+          margin: spacing.sm,
+        }}>
+        <Icon name="chart-area" size={48} color={colors.textSecondary} />
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            padding: spacing.md,
+            fontSize: 16,
+            fontWeight: '600',
+          }}>
+          Area Chart
+        </Text>
+        <Text
+          style={{
+            textAlign: 'center',
+            color: colors.textSecondary,
+            paddingHorizontal: spacing.md,
+            fontSize: 14,
+          }}>
+          Unable to render
+        </Text>
+      </View>
+    );
+  }
+};
 import {
   setFilters,
   resetFilters,
@@ -43,15 +531,20 @@ import {
   fetchReports,
 } from '../store/reportSlice';
 import {
+  fetchBeneficiaries,
+  selectBeneficiaries,
+  selectBeneficiaryLoading,
+  selectBeneficiaryError,
+} from '../store/beneficiarySlice';
+import {debugCacheStatus} from '../utils/asyncCache';
+import {
   exportJsonToXlsx,
   exportJsonToCSV,
   exportJsonToText,
 } from '../utils/export';
 import {API} from '../utils/api';
 import Header from '../components/Header';
-import Select from '../components/Select';
-import Chart from '../components/Chart';
-import StatCard from '../components/StatCard';
+import NetworkStatus from '../components/NetworkStatus';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {BackHandler} from 'react-native';
 import {getRole} from '../utils/role';
@@ -66,10 +559,18 @@ const Reports = ({navigation, route}) => {
   const loading = useSelector(selectReportLoading);
   const error = useSelector(selectReportError);
 
+  // Get beneficiaries from Redux store (with offline caching)
+  const beneficiaries = useSelector(selectBeneficiaries);
+  const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
+  const beneficiaryError = useSelector(selectBeneficiaryError);
+
   // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  // Track if we've already processed data to prevent infinite loops
+  const hasProcessedData = useRef(false);
 
   const [agg, setAgg] = useState({
     total: 0,
@@ -99,11 +600,7 @@ const Reports = ({navigation, route}) => {
     unknown: 0,
   });
 
-  // Animated values for progress bars
-  const normalProgressAnim = useRef(new Animated.Value(0)).current;
-  const mildProgressAnim = useRef(new Animated.Value(0)).current;
-  const moderateProgressAnim = useRef(new Animated.Value(0)).current;
-  const severeProgressAnim = useRef(new Animated.Value(0)).current;
+  // Removed unused progress bar animation values for better performance
   const DateTimePicker = useMemo(() => {
     try {
       const mod = require('@react-native-community/datetimepicker');
@@ -123,8 +620,19 @@ const Reports = ({navigation, route}) => {
     }, [navigation]),
   );
 
-  // Animation on component mount
+  // Load beneficiaries and run animations on component mount
   useEffect(() => {
+    // Only fetch beneficiaries if we don't have any data
+    if (!beneficiaries || beneficiaries.length === 0) {
+      console.log('[Reports] Initial load - fetching beneficiaries...');
+      dispatch(fetchBeneficiaries());
+    } else {
+      console.log(
+        '[Reports] Initial load - using existing beneficiaries:',
+        beneficiaries.length,
+      );
+    }
+
     // Start with visible content, then add subtle animation
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -143,52 +651,26 @@ const Reports = ({navigation, route}) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
+  }, [dispatch]); // Only run once on mount
 
-  // Progress bar animations
+  // Process data when beneficiaries are loaded
   useEffect(() => {
-    if (agg.total > 0) {
-      const normalPercentage = (agg.normal / agg.total) * 100;
-      const mildPercentage = (agg.mild / agg.total) * 100;
-      const moderatePercentage = (agg.moderate / agg.total) * 100;
-      const severePercentage = (agg.severe / agg.total) * 100;
-
-      setTimeout(() => {
-        Animated.timing(normalProgressAnim, {
-          toValue: normalPercentage,
-          duration: 1000,
-          useNativeDriver: false,
-        }).start();
-      }, 0);
-
-      setTimeout(() => {
-        Animated.timing(mildProgressAnim, {
-          toValue: mildPercentage,
-          duration: 1000,
-          useNativeDriver: false,
-        }).start();
-      }, 200);
-
-      setTimeout(() => {
-        Animated.timing(moderateProgressAnim, {
-          toValue: moderatePercentage,
-          duration: 1000,
-          useNativeDriver: false,
-        }).start();
-      }, 400);
-
-      setTimeout(() => {
-        Animated.timing(severeProgressAnim, {
-          toValue: severePercentage,
-          duration: 1000,
-          useNativeDriver: false,
-        }).start();
-      }, 600);
+    if (
+      beneficiaries &&
+      beneficiaries.length > 0 &&
+      !hasProcessedData.current
+    ) {
+      console.log('[Reports] Beneficiaries loaded, processing data...');
+      hasProcessedData.current = true;
+      load(true); // Skip fetching since we already have data
     }
-  }, [agg.total, agg.normal, agg.mild, agg.moderate, agg.severe]);
+  }, [beneficiaries]); // Run when beneficiaries change
+
+  // Removed unused progress bar animations for better performance
 
   // Update dashboard and list immediately when filters change
   useEffect(() => {
+    hasProcessedData.current = false; // Reset flag when filters change
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
@@ -202,113 +684,99 @@ const Reports = ({navigation, route}) => {
     })();
   }, [navigation]);
 
-  // Animate counter values
+  // Simplified counter animation for better performance
   const animateCounters = targetValues => {
-    const duration = 1500;
-    const steps = 60;
-    const stepDuration = duration / steps;
-
-    Object.keys(targetValues).forEach(key => {
-      const targetValue = targetValues[key];
-      const startValue = animatedValues[key] || 0;
-      const increment = (targetValue - startValue) / steps;
-
-      let currentStep = 0;
-      const timer = setInterval(() => {
-        currentStep++;
-        const newValue = Math.round(startValue + increment * currentStep);
-
-        setAnimatedValues(prev => ({
-          ...prev,
-          [key]: Math.min(newValue, targetValue),
-        }));
-
-        if (currentStep >= steps) {
-          clearInterval(timer);
-          setAnimatedValues(prev => ({
-            ...prev,
-            [key]: targetValue,
-          }));
-        }
-      }, stepDuration);
-    });
+    // Use direct state update instead of complex animation
+    setAnimatedValues(targetValues);
   };
 
   const computeSeverity = (hb, anemiaCategory) => {
-    console.log(
-      `[Reports] computeSeverity called with Hb=${hb}, AnemiaCategory=${anemiaCategory}`,
-    );
-
-    // If anemia category is provided, use it directly
     if (anemiaCategory && anemiaCategory !== null && anemiaCategory !== '') {
       const category = anemiaCategory.toLowerCase().trim();
-      console.log(`[Reports] Using anemia category: "${category}"`);
-
       if (category === 'no anemia' || category === 'normal') return 'normal';
       if (category === 'mild') return 'mild';
       if (category === 'moderate') return 'moderate';
       if (category === 'severe') return 'severe';
     }
 
-    // Fallback to Hb-based calculation if no category
-    console.log(`[Reports] Falling back to Hb-based calculation for Hb=${hb}`);
     if (hb == null || hb === '') return 'unknown';
     const v = Number(hb);
     if (Number.isNaN(v)) return 'unknown';
 
-    // Simple bands (can be adjusted per program guidelines)
     if (v >= 12) return 'normal';
     if (v >= 11) return 'mild';
     if (v >= 8) return 'moderate';
     return 'severe';
   };
 
-  const load = async () => {
+  const load = async (skipFetch = false) => {
     dispatch(setReportLoading(true));
+    dispatch(setReportError(null)); // Clear any previous errors
     try {
-      const response = await API.getBeneficiariesWithData(500);
-      console.log('[Reports] API response:', response);
+      await debugCacheStatus();
 
-      // Extract data from response
-      const data = response?.data || response;
-      console.log('[Reports] Extracted beneficiaries:', data);
+      // Use beneficiaries from Redux store (don't fetch again if we already have data)
+      let data = beneficiaries;
 
-      // Check first beneficiary structure to understand available fields
-      if (data && data.length > 0) {
-        console.log('[Reports] First beneficiary structure:', data[0]);
-        console.log('[Reports] First beneficiary keys:', Object.keys(data[0]));
+      // Only fetch if we don't have data and we're not skipping the fetch
+      if ((!data || data.length === 0) && !skipFetch) {
+        console.log('[Reports] No beneficiaries in Redux, fetching...');
+        const fetchResult = await dispatch(fetchBeneficiaries());
+        data = fetchResult.payload || beneficiaries;
+      } else {
+        console.log(
+          '[Reports] Using existing beneficiaries from Redux:',
+          data.length,
+        );
       }
 
-      if (!Array.isArray(data)) {
-        console.warn('[Reports] API returned non-array:', data);
-        dispatch(setReportError('No data available'));
+      if (!Array.isArray(data) || data.length === 0) {
+        console.warn('[Reports] No beneficiaries data available');
+        // Don't set error immediately, check if we're still loading
+        if (!beneficiaryLoading) {
+          // Try to get cached data as fallback
+          try {
+            const {getCachedBeneficiaries} = await import(
+              '../utils/asyncCache'
+            );
+            const cachedData = await getCachedBeneficiaries();
+            if (cachedData && cachedData.length > 0) {
+              console.log('[Reports] Using cached data as fallback');
+              // Process cached data instead of showing error
+              const enriched = cachedData.map(r => {
+                const anemiaCategory =
+                  r.latest_anemia_category || r.anemia_category || null;
+                const hbValue = r.latest_hemoglobin || r.hb;
+                const severity = computeSeverity(hbValue, anemiaCategory);
+                return {...r, _severity: severity};
+              });
+              setRows(enriched);
+              setAgg({
+                total: enriched.length,
+                normal: 0,
+                mild: 0,
+                moderate: 0,
+                severe: 0,
+                unknown: 0,
+              });
+              dispatch(setCurrentReport(enriched));
+              return;
+            }
+          } catch (cacheError) {
+            console.warn('[Reports] Failed to get cached data:', cacheError);
+          }
+          dispatch(setReportError('No data available'));
+        }
         return;
       }
 
-      const enriched = data.map((r, index) => {
-        // Check all possible field names for anemia category
+      // Optimize data processing with batch operations
+      const enriched = data.map(r => {
+        // Simplified field checking
         const anemiaCategory =
-          r.latest_anemia_category ||
-          r.anemia_category ||
-          r.anemiaCategory ||
-          r.anemia_cat ||
-          r.anemiaCat ||
-          null;
-        // Use latest screening data if available, otherwise fallback to beneficiary hb
+          r.latest_anemia_category || r.anemia_category || null;
         const hbValue = r.latest_hemoglobin || r.hb;
         const severity = computeSeverity(hbValue, anemiaCategory);
-
-        // Only log first few beneficiaries to avoid spam
-        if (index < 3) {
-          console.log(
-            `[Reports] Beneficiary ${r.name}: Hb=${hbValue}, AnemiaCategory=${anemiaCategory}, Severity=${severity}`,
-          );
-          console.log(
-            `[Reports] Latest screening data: hemoglobin=${r.latest_hemoglobin}, anemia_category=${r.latest_anemia_category}`,
-          );
-          console.log(`[Reports] Beneficiary category: ${r.category}`);
-          console.log(`[Reports] Available fields:`, Object.keys(r));
-        }
 
         return {
           ...r,
@@ -358,7 +826,7 @@ const Reports = ({navigation, route}) => {
 
       setRows(filtered);
 
-      // Calculate statistics
+      // Optimize statistics calculation
       let counts = {
         total: filtered.length,
         normal: 0,
@@ -369,48 +837,18 @@ const Reports = ({navigation, route}) => {
       };
       let catCounts = {Pregnant: 0, Adolescent: 0, Under5: 0, WoRA: 0};
 
-      console.log(
-        '[Reports] Calculating statistics for filtered data:',
-        filtered.length,
-        'beneficiaries',
-      );
-
+      // Single pass through data for better performance
       filtered.forEach(r => {
         const s = r._severity || 'unknown';
-        console.log(
-          `[Reports] Processing ${r.name}: severity=${s}, category=${r.category}`,
-        );
 
-        if (s === 'normal') counts.normal++;
-        else if (s === 'mild') counts.mild++;
-        else if (s === 'moderate') counts.moderate++;
-        else if (s === 'severe') counts.severe++;
-        else counts.unknown++;
+        // Count severity
+        counts[s] = (counts[s] || 0) + 1;
 
-        if (r.category === 'Pregnant') catCounts.Pregnant++;
-        else if (r.category === 'Adolescent') catCounts.Adolescent++;
-        else if (r.category === 'Under5') catCounts.Under5++;
-        else if (r.category === 'WoRA') catCounts.WoRA++;
+        // Count categories
+        if (r.category && catCounts.hasOwnProperty(r.category)) {
+          catCounts[r.category]++;
+        }
       });
-
-      console.log('[Reports] Final counts:', counts);
-      console.log('[Reports] Category counts:', catCounts);
-      console.log(
-        '[Reports] Summary: Total beneficiaries processed:',
-        filtered.length,
-      );
-      console.log(
-        '[Reports] Severity breakdown: Normal=',
-        counts.normal,
-        'Mild=',
-        counts.mild,
-        'Moderate=',
-        counts.moderate,
-        'Severe=',
-        counts.severe,
-        'Unknown=',
-        counts.unknown,
-      );
 
       setAgg(counts);
       setCatAgg(catCounts);
@@ -466,6 +904,10 @@ const Reports = ({navigation, route}) => {
         ],
       };
 
+      console.log(
+        '[Reports] Setting chartData:',
+        JSON.stringify(categoryChartData, null, 2),
+      );
       setChartData(categoryChartData);
       setSeverityChartData(severityChartData);
     } catch (e) {
@@ -483,254 +925,63 @@ const Reports = ({navigation, route}) => {
     }
 
     try {
-      console.log('[Reports] Exporting report with', rows.length, 'rows');
-      console.log('[Reports] Sample row for export:', rows[0]);
-
-      // Create export data with only essential fields and strict sanitization
       const exportData = [];
-
-      // Helper function to safely convert values to strings
       const safeString = value => {
         if (value === null || value === undefined) return '';
-        if (typeof value === 'string') return value;
-        if (typeof value === 'number')
-          return isNaN(value) ? '' : value.toString();
-        if (typeof value === 'boolean') return value ? 'Yes' : 'No';
-        if (Array.isArray(value))
-          return value.length > 0 ? value.join(', ') : '';
-        if (typeof value === 'object') {
-          try {
-            return JSON.stringify(value);
-          } catch (e) {
-            return '[Object]';
-          }
-        }
-        try {
-          return String(value);
-        } catch (e) {
-          console.warn('[Reports] Failed to convert value:', value, e);
-          return '';
-        }
+        return String(value);
       };
 
-      rows.forEach((row, index) => {
-        // Create a completely new object with only primitive values
-        const exportRow = {};
-
-        // Add each field individually to avoid any array/object references
-        exportRow['Name'] = safeString(row.name);
-        exportRow['Age'] = safeString(row.age);
-        exportRow['Gender'] = safeString(row.gender);
-        exportRow['Phone'] = safeString(row.phone);
-        exportRow['Alternative Phone'] = safeString(row.alt_phone);
-        exportRow['Category'] = safeString(row.category);
-        exportRow['Hb Level'] = safeString(row.latest_hemoglobin || row.hb);
-        exportRow['Anemia Category'] = safeString(
-          row.latest_anemia_category || row.anemia_category,
-        );
-        exportRow['Severity'] = safeString(row._severity);
-        exportRow['Doctor Name'] = safeString(row.doctor_name);
-        exportRow['Doctor Phone'] = safeString(row.doctor_phone);
-        exportRow['Registration Date'] = safeString(row.registration_date);
-        exportRow['Follow-up Due'] = safeString(row.follow_up_due);
-        exportRow['Location'] = safeString(row.location);
-        exportRow['Address'] = safeString(row.address);
-        exportRow['Short ID'] = safeString(row.short_id);
-        exportRow['ID Number'] = safeString(row.id_number);
-        exportRow['Aadhaar Hash'] = safeString(row.aadhaar_hash);
-        exportRow['Created At'] = safeString(row.created_at);
-        exportRow['Updated At'] = safeString(row.updated_at);
-
-        // Add screening data
-        exportRow['Screening ID'] = safeString(row.screening_id);
-        exportRow['Screening Notes'] = safeString(row.screening_notes);
-        exportRow['Last Screening Date'] = safeString(row.last_screening_date);
-
-        // Add intervention data
-        exportRow['Intervention ID'] = safeString(row.intervention_id);
-        exportRow['IFA Given'] = safeString(row.intervention_ifa_yes);
-        exportRow['Calcium Given'] = safeString(row.intervention_calcium_yes);
-        exportRow['Deworming Given'] = safeString(row.intervention_deworm_yes);
-        exportRow['Therapeutic Given'] = safeString(
-          row.intervention_therapeutic_yes,
-        );
-        exportRow['Referral Given'] = safeString(row.intervention_referral_yes);
-        exportRow['Last Intervention Date'] = safeString(
-          row.last_intervention_date,
-        );
-
-        // Add additional beneficiary fields
-        exportRow['Date of Birth'] = safeString(row.dob);
-        exportRow['Front Document'] = safeString(row.front_document);
-        exportRow['Back Document'] = safeString(row.back_document);
-        exportRow['Calcium Quantity'] = safeString(row.calcium_qty);
-
-        // Log first few rows for debugging
-        if (index < 3) {
-          console.log(`[Reports] Export row ${index}:`, exportRow);
-        }
-
+      // Simplified export with only essential fields
+      rows.forEach(row => {
+        const exportRow = {
+          Name: safeString(row.name),
+          Category: safeString(row.category),
+          'Hb Level': safeString(row.latest_hemoglobin || row.hb),
+          Severity: safeString(row._severity),
+          'Registration Date': safeString(row.registration_date),
+          'Follow-up Due': safeString(row.follow_up_due),
+        };
         exportData.push(exportRow);
       });
 
-      // Add dashboard statistics as summary rows
+      // Simplified summary data
       const summaryRows = [
         {
           Name: '=== DASHBOARD SUMMARY ===',
-          Age: '',
-          Gender: '',
-          Phone: '',
-          'Alternative Phone': '',
           Category: '',
           'Hb Level': '',
-          'Anemia Category': '',
           Severity: '',
-          'Doctor Name': '',
-          'Doctor Phone': '',
           'Registration Date': '',
           'Follow-up Due': '',
-          Location: '',
-          Address: '',
-          'Short ID': '',
-          'ID Number': '',
-          'Aadhaar Hash': '',
-          'Created At': '',
-          'Updated At': '',
-          'Screening ID': '',
-          'Screening Notes': '',
-          'Last Screening Date': '',
-          'Intervention ID': '',
-          'IFA Given': '',
-          'Calcium Given': '',
-          'Deworming Given': '',
-          'Therapeutic Given': '',
-          'Referral Given': '',
-          'Last Intervention Date': '',
-          'Date of Birth': '',
-          'Front Document': '',
-          'Back Document': '',
-          'Calcium Quantity': '',
         },
         {
           Name: 'Category Statistics',
-          Age: '',
-          Gender: '',
-          Phone: '',
-          'Alternative Phone': '',
           Category: `Pregnant: ${catAgg.Pregnant}, Adolescent: ${catAgg.Adolescent}, Under5: ${catAgg.Under5}, WoRA: ${catAgg.WoRA}`,
           'Hb Level': '',
-          'Anemia Category': '',
           Severity: '',
-          'Doctor Name': '',
-          'Doctor Phone': '',
           'Registration Date': '',
           'Follow-up Due': '',
-          Location: '',
-          Address: '',
-          'Short ID': '',
-          'ID Number': '',
-          'Aadhaar Hash': '',
-          'Created At': '',
-          'Updated At': '',
-          'Screening ID': '',
-          'Screening Notes': '',
-          'Last Screening Date': '',
-          'Intervention ID': '',
-          'IFA Given': '',
-          'Calcium Given': '',
-          'Deworming Given': '',
-          'Therapeutic Given': '',
-          'Referral Given': '',
-          'Last Intervention Date': '',
-          'Date of Birth': '',
-          'Front Document': '',
-          'Back Document': '',
-          'Calcium Quantity': '',
         },
         {
           Name: 'Severity Statistics',
-          Age: '',
-          Gender: '',
-          Phone: '',
-          'Alternative Phone': '',
           Category: `Normal: ${agg.normal}, Mild: ${agg.mild}, Moderate: ${agg.moderate}, Severe: ${agg.severe}, Unknown: ${agg.unknown}`,
           'Hb Level': '',
-          'Anemia Category': '',
           Severity: '',
-          'Doctor Name': '',
-          'Doctor Phone': '',
           'Registration Date': '',
           'Follow-up Due': '',
-          Location: '',
-          Address: '',
-          'Short ID': '',
-          'ID Number': '',
-          'Aadhaar Hash': '',
-          'Created At': '',
-          'Updated At': '',
-          'Screening ID': '',
-          'Screening Notes': '',
-          'Last Screening Date': '',
-          'Intervention ID': '',
-          'IFA Given': '',
-          'Calcium Given': '',
-          'Deworming Given': '',
-          'Therapeutic Given': '',
-          'Referral Given': '',
-          'Last Intervention Date': '',
-          'Date of Birth': '',
-          'Front Document': '',
-          'Back Document': '',
-          'Calcium Quantity': '',
         },
         {
           Name: 'Total Beneficiaries',
-          Age: '',
-          Gender: '',
-          Phone: '',
-          'Alternative Phone': '',
           Category: agg.total.toString(),
           'Hb Level': '',
-          'Anemia Category': '',
           Severity: '',
-          'Doctor Name': '',
-          'Doctor Phone': '',
           'Registration Date': '',
           'Follow-up Due': '',
-          Location: '',
-          Address: '',
-          'Short ID': '',
-          'ID Number': '',
-          'Aadhaar Hash': '',
-          'Created At': '',
-          'Updated At': '',
-          'Screening ID': '',
-          'Screening Notes': '',
-          'Last Screening Date': '',
-          'Intervention ID': '',
-          'IFA Given': '',
-          'Calcium Given': '',
-          'Deworming Given': '',
-          'Therapeutic Given': '',
-          'Referral Given': '',
-          'Last Intervention Date': '',
-          'Date of Birth': '',
-          'Front Document': '',
-          'Back Document': '',
-          'Calcium Quantity': '',
         },
       ];
 
-      // Only export dashboard summary, not beneficiary data
-      const finalExportData = summaryRows;
-
-      console.log(
-        '[Reports] Export data prepared:',
-        finalExportData.length,
-        'rows (dashboard summary only)',
-      );
-      console.log('[Reports] First export row:', finalExportData[0]);
-
+      // Export both data and summary
+      const finalExportData = [...exportData, ...summaryRows];
       try {
         // Try CSV export first (most reliable)
         await exportJsonToCSV(finalExportData, 'Animia_Report');
@@ -753,52 +1004,44 @@ const Reports = ({navigation, route}) => {
     }
   };
 
-  // Enhanced Progress Bar with Animation
-  const renderAnimatedProgressBar = (
-    value,
-    total,
-    color,
-    label,
-    animatedValue,
-    delay = 0,
-  ) => {
-    const percentage = total > 0 ? (value / total) * 100 : 0;
+  // Removed unused progress bar component for better performance
 
-    return (
-      <View style={styles.progressContainer}>
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>{label}</Text>
-          <View style={styles.progressValues}>
-            <Text style={[styles.progressValue, {color}]}>{value}</Text>
-            <Text style={styles.progressPercentage}>
-              {percentage.toFixed(1)}%
-            </Text>
-          </View>
-        </View>
-        <View style={styles.progressBarBackground}>
-          <Animated.View
-            style={[
-              styles.progressBarFill,
-              {
-                width: animatedValue.interpolate({
-                  inputRange: [0, 100],
-                  outputRange: ['0%', '100%'],
-                }),
-                backgroundColor: color,
-              },
-            ]}
-          />
-        </View>
-      </View>
-    );
-  };
-
-  // Enhanced Pie Chart Component
-  const renderPieChart = (data, title, colors) => {
+  // Proper Pie Chart using react-native-chart-kit
+  const renderPieChart = useCallback((data, title) => {
     if (!data || !data.labels || data.labels.length === 0) return null;
 
+    // Ensure data.datasets exists and has data
+    if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
+      return null;
+    }
+
     const total = data.datasets[0].data.reduce((sum, value) => sum + value, 0);
-    let currentAngle = 0;
+    if (total === 0) return null;
+
+    // Prepare data for react-native-chart-kit
+    const chartData = data.labels.map((label, index) => ({
+      name: label,
+      population: data.datasets[0].data[index],
+      color: data.datasets[0].colors[index],
+      legendFontColor: colors.text,
+      legendFontSize: 12,
+    }));
+
+    const chartConfig = {
+      backgroundColor: colors.white,
+      backgroundGradientFrom: colors.white,
+      backgroundGradientTo: colors.white,
+      color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+      style: {
+        borderRadius: 16,
+      },
+      propsForDots: {
+        r: '6',
+        strokeWidth: '2',
+        stroke: colors.primary,
+      },
+    };
 
     return (
       <View style={styles.chartCard}>
@@ -806,45 +1049,96 @@ const Reports = ({navigation, route}) => {
           <Icon name="chart-pie" size={20} color={colors.primary} />
           <Text style={styles.chartTitle}>{title}</Text>
         </View>
-        <View style={styles.pieChartContainer}>
-          <View style={styles.pieChart}>
-            {data.labels.map((label, index) => {
-              const value = data.datasets[0].data[index];
-              const percentage = (value / total) * 100;
-              const color = data.datasets[0].colors[index];
-              const size = Math.max(20, (percentage / 100) * 60);
 
-              return (
-                <View key={label} style={styles.pieSegment}>
-                  <View
-                    style={[
-                      styles.pieSlice,
-                      {
-                        backgroundColor: color,
-                        width: size,
-                        height: size,
-                        borderRadius: size / 2,
-                      },
-                    ]}
-                  />
-                </View>
-              );
-            })}
-          </View>
-          <View style={styles.pieLegend}>
-            {data.labels.map((label, index) => {
-              const value = data.datasets[0].data[index];
-              const percentage = ((value / total) * 100).toFixed(1);
-              const color = data.datasets[0].colors[index];
+        <View style={styles.chartContainer}>
+          <PieChart
+            data={chartData}
+            width={screenWidth - 80}
+            height={220}
+            chartConfig={chartConfig}
+            accessor="population"
+            backgroundColor="transparent"
+            paddingLeft="15"
+            center={[10, 10]}
+            absolute
+          />
+        </View>
+      </View>
+    );
+  }, []);
 
+  // Proper Bar Chart using react-native-chart-kit
+  const renderBarChart = useCallback((data, title) => {
+    console.log(
+      '[renderBarChart] Received data:',
+      JSON.stringify(data, null, 2),
+    );
+
+    if (!data || !data.labels || data.labels.length === 0) {
+      console.log('[renderBarChart] No data or labels available');
+      return null;
+    }
+
+    // Ensure data.datasets exists and has data
+    if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
+      console.log('[renderBarChart] Invalid data structure');
+      return null;
+    }
+
+    const maxValue = Math.max(...data.datasets[0].data);
+    if (maxValue === 0) {
+      console.log('[renderBarChart] Max value is 0');
+      return null;
+    }
+
+    // Simple data structure for GiftedBarChart
+    const chartData = {
+      labels: data.labels,
+      datasets: [
+        {
+          data: data.datasets[0].data,
+        },
+      ],
+    };
+
+    console.log(
+      '[renderBarChart] Final chartData:',
+      JSON.stringify(chartData, null, 2),
+    );
+    console.log('[renderBarChart] Colors array:', chartData.datasets[0].colors);
+
+    // GiftedBarChart doesn't need chartConfig
+
+    return (
+      <View style={styles.chartCard}>
+        <View style={styles.chartHeader}>
+          <Icon name="chart-area" size={20} color={colors.primary} />
+          <Text style={styles.chartTitle}>{title}</Text>
+        </View>
+
+        <View style={styles.chartContainer}>
+          <BarChart
+            data={chartData}
+            style={{
+              marginVertical: 8,
+              borderRadius: 16,
+            }}
+          />
+
+          {/* Custom Legend for BarChart */}
+          <View style={styles.legendContainer}>
+            {data.labels.map((label, index) => {
+              const color = data.datasets[0].colors
+                ? data.datasets[0].colors[index]
+                : colors.primary;
               return (
-                <View key={label} style={styles.legendItem}>
+                <View key={index} style={styles.legendItem}>
                   <View
                     style={[styles.legendColor, {backgroundColor: color}]}
                   />
-                  <Text style={styles.legendLabel}>{label}</Text>
-                  <Text style={styles.legendValue}>
-                    {value} ({percentage}%)
+                  <Text style={styles.legendText}>
+                    {label.charAt(0).toUpperCase() + label.slice(1)}:{' '}
+                    {data.datasets[0].data[index]}
                   </Text>
                 </View>
               );
@@ -853,72 +1147,153 @@ const Reports = ({navigation, route}) => {
         </View>
       </View>
     );
-  };
+  }, []);
 
-  // Enhanced Bar Chart Component
-  const renderBarChart = (data, title) => {
-    if (!data || !data.labels || data.labels.length === 0) return null;
+  // Area Chart for Health Status Analysis with different colors
+  const renderAreaChart = useCallback((data, title) => {
+    console.log(
+      '[renderAreaChart] Received data:',
+      JSON.stringify(data, null, 2),
+    );
+
+    if (!data || !data.labels || data.labels.length === 0) {
+      console.log('[renderAreaChart] No data or labels available');
+      return null;
+    }
+
+    // Ensure data.datasets exists and has data
+    if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
+      console.log('[renderAreaChart] Invalid data structure');
+      return null;
+    }
 
     const maxValue = Math.max(...data.datasets[0].data);
+    if (maxValue === 0) {
+      console.log('[renderAreaChart] Max value is 0');
+      return null;
+    }
+
+    // Create a single dataset with all values for better line chart visualization
+    const chartData = {
+      labels: data.labels,
+      datasets: [
+        {
+          data: data.datasets[0].data,
+          color: (opacity = 1) => colors.primary,
+          strokeWidth: 3,
+        },
+      ],
+    };
+
+    console.log(
+      '[renderAreaChart] Final chartData:',
+      JSON.stringify(chartData, null, 2),
+    );
+
+    const chartConfig = {
+      backgroundColor: colors.white,
+      backgroundGradientFrom: colors.white,
+      backgroundGradientTo: colors.white,
+      decimalPlaces: 0,
+      color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+      labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+      style: {
+        borderRadius: 16,
+      },
+      propsForDots: {
+        r: '8',
+        strokeWidth: '3',
+        stroke: colors.primary,
+      },
+      propsForBackgroundLines: {
+        strokeDasharray: '',
+        stroke: colors.border,
+        strokeWidth: 1,
+      },
+    };
 
     return (
       <View style={styles.chartCard}>
         <View style={styles.chartHeader}>
-          <Icon name="chart-bar" size={20} color={colors.primary} />
+          <Icon name="chart-area" size={20} color={colors.primary} />
           <Text style={styles.chartTitle}>{title}</Text>
         </View>
-        <View style={styles.barChartContainer}>
-          {data.labels.map((label, index) => {
-            const value = data.datasets[0].data[index];
-            const height = (value / maxValue) * 100;
-            const color = data.datasets[0].colors[index];
 
-            return (
-              <View key={label} style={styles.barItem}>
-                <View style={styles.barContainer}>
-                  <Animated.View
-                    style={[
-                      styles.bar,
-                      {
-                        height: `${height}%`,
-                        backgroundColor: color,
-                      },
-                    ]}
+        <View style={styles.chartContainer}>
+          <AreaChart
+            data={chartData}
+            width={screenWidth - 80}
+            height={220}
+            chartConfig={chartConfig}
+            bezier
+            style={{
+              marginVertical: 8,
+              borderRadius: 16,
+            }}
+            withDots={true}
+            withShadow={true}
+          />
+
+          {/* Custom Legend */}
+          <View style={styles.legendContainer}>
+            {data.labels.map((label, index) => {
+              let color;
+              switch (label.toLowerCase()) {
+                case 'normal':
+                  color = '#10B981';
+                  break;
+                case 'mild':
+                  color = '#F59E0B';
+                  break;
+                case 'moderate':
+                  color = '#EF4444';
+                  break;
+                case 'severe':
+                  color = '#DC2626';
+                  break;
+                case 'unknown':
+                  color = '#6B7280';
+                  break;
+                default:
+                  color = '#2563EB';
+              }
+
+              return (
+                <View key={index} style={styles.legendItem}>
+                  <View
+                    style={[styles.legendColor, {backgroundColor: color}]}
                   />
+                  <Text style={styles.legendText}>
+                    {label.charAt(0).toUpperCase() + label.slice(1)}:{' '}
+                    {data.datasets[0].data[index]}
+                  </Text>
                 </View>
-                <Text style={styles.barLabel}>{label}</Text>
-                <Text style={styles.barValue}>{value}</Text>
-              </View>
-            );
-          })}
+              );
+            })}
+          </View>
         </View>
       </View>
     );
-  };
+  }, []);
 
   const renderModernDashboard = useCallback(
     () => (
       <View style={styles.modernDashboard}>
-        {/* Welcome Header */}
-        <View style={styles.welcomeHeader}>
-          <View style={styles.headerIconContainer}>
-            <Icon name="chart-line" size={32} color={colors.primary} />
-          </View>
-          <Text style={styles.welcomeTitle}>Analytics Dashboard</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Real-time health insights and statistics
-          </Text>
+        {/* Proper Date Display */}
+        <View style={styles.dateSection}>
           <View style={styles.dateDisplayContainer}>
-            <Icon name="calendar" size={16} color={colors.textSecondary} />
-            <Text style={styles.dateDisplayText}>
-              {filters.dateRange.startDate === filters.dateRange.endDate
-                ? dayjs(filters.dateRange.startDate).format('MMMM DD, YYYY')
-                : `${dayjs(filters.dateRange.startDate).format(
-                    'MMM DD',
-                  )} - ${dayjs(filters.dateRange.endDate).format(
-                    'MMM DD, YYYY',
-                  )}`}
-            </Text>
+            <View style={styles.dateInfo}>
+              <Icon name="calendar" size={18} color={colors.primary} />
+              <Text style={styles.dateDisplayText}>
+                {filters.dateRange.startDate === filters.dateRange.endDate
+                  ? dayjs(filters.dateRange.startDate).format('MMMM DD, YYYY')
+                  : `${dayjs(filters.dateRange.startDate).format(
+                      'MMM DD',
+                    )} - ${dayjs(filters.dateRange.endDate).format(
+                      'MMM DD, YYYY',
+                    )}`}
+              </Text>
+            </View>
             {filters.dateRange.startDate !== dayjs().format('YYYY-MM-DD') && (
               <TouchableOpacity
                 style={styles.todayButton}
@@ -939,380 +1314,291 @@ const Reports = ({navigation, route}) => {
           </View>
         </View>
 
-        {/* Key Metrics Row */}
+        {/* Enhanced Key Metrics Row with Gradients */}
         <View style={styles.keyMetricsRow}>
-          <View style={styles.keyMetricCard}>
-            <LinearGradient
-              colors={[colors.primary + '15', colors.primary + '05']}
-              style={styles.metricGradient}>
-              <View style={styles.metricIconContainer}>
-                <Icon name="account-group" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.metricNumber}>{animatedValues.total}</Text>
-              <Text style={styles.metricLabel}>Total Beneficiaries</Text>
-            </LinearGradient>
-          </View>
+          <LinearGradient
+            colors={[colors.primary, colors.primary + 'CC']}
+            style={styles.keyMetricCard}>
+            <View style={styles.metricIconContainer}>
+              <Icon name="account-group" size={24} color={colors.white} />
+            </View>
+            <Text style={[styles.metricNumber, {color: colors.white}]}>
+              {animatedValues.total}
+            </Text>
+            <Text style={[styles.metricLabel, {color: colors.white}]}>
+              Total Beneficiaries
+            </Text>
+          </LinearGradient>
 
-          <View style={styles.keyMetricCard}>
-            <LinearGradient
-              colors={[colors.success + '15', colors.success + '05']}
-              style={styles.metricGradient}>
-              <View
-                style={[
-                  styles.metricIconContainer,
-                  {backgroundColor: colors.success + '20'},
-                ]}>
-                <Icon name="check-circle" size={24} color={colors.success} />
-              </View>
-              <Text style={styles.metricNumber}>
-                {animatedValues.normal + animatedValues.mild}
-              </Text>
-              <Text style={styles.metricLabel}>Under Control</Text>
-            </LinearGradient>
-          </View>
+          <LinearGradient
+            colors={[colors.success, colors.success + 'CC']}
+            style={styles.keyMetricCard}>
+            <View
+              style={[
+                styles.metricIconContainer,
+                {backgroundColor: colors.white + '20'},
+              ]}>
+              <Icon name="check-circle" size={24} color={colors.white} />
+            </View>
+            <Text style={[styles.metricNumber, {color: colors.white}]}>
+              {animatedValues.normal + animatedValues.mild}
+            </Text>
+            <Text style={[styles.metricLabel, {color: colors.white}]}>
+              Under Control
+            </Text>
+          </LinearGradient>
 
-          <View style={styles.keyMetricCard}>
-            <LinearGradient
-              colors={[colors.warning + '15', colors.warning + '05']}
-              style={styles.metricGradient}>
-              <View
-                style={[
-                  styles.metricIconContainer,
-                  {backgroundColor: colors.warning + '20'},
-                ]}>
-                <Icon name="alert-circle" size={24} color={colors.warning} />
-              </View>
-              <Text style={styles.metricNumber}>
-                {animatedValues.severe + animatedValues.moderate}
-              </Text>
-              <Text style={styles.metricLabel}>High Priority</Text>
-            </LinearGradient>
-          </View>
+          <LinearGradient
+            colors={[colors.warning, colors.warning + 'CC']}
+            style={styles.keyMetricCard}>
+            <View
+              style={[
+                styles.metricIconContainer,
+                {backgroundColor: colors.white + '20'},
+              ]}>
+              <Icon name="alert-circle" size={24} color={colors.white} />
+            </View>
+            <Text style={[styles.metricNumber, {color: colors.white}]}>
+              {animatedValues.severe + animatedValues.moderate}
+            </Text>
+            <Text style={[styles.metricLabel, {color: colors.white}]}>
+              High Priority
+            </Text>
+          </LinearGradient>
         </View>
 
-        {/* Category Distribution */}
-        <View style={styles.dashboardCard}>
-          <View style={styles.cardHeader}>
+        {/* Enhanced Category Distribution with Cards */}
+        <View style={styles.progressSection}>
+          <View style={styles.sectionHeader}>
             <Icon name="account-group" size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Population Distribution</Text>
+            <Text style={styles.sectionTitle}>Population Distribution</Text>
           </View>
           <View style={styles.categoryGrid}>
-            <View style={styles.categoryItem}>
-              <LinearGradient
-                colors={[colors.pregnant + '20', colors.pregnant + '10']}
-                style={styles.categoryIcon}>
+            <View
+              style={[styles.categoryCard, {borderLeftColor: colors.pregnant}]}>
+              <View
+                style={[
+                  styles.categoryIcon,
+                  {backgroundColor: colors.pregnant + '20'},
+                ]}>
                 <Icon name="human-pregnant" size={20} color={colors.pregnant} />
-              </LinearGradient>
+              </View>
               <Text style={styles.categoryNumber}>{catAgg.Pregnant}</Text>
               <Text style={styles.categoryLabel}>Pregnant</Text>
+              <Text style={styles.categoryPercentage}>
+                {agg.total > 0
+                  ? ((catAgg.Pregnant / agg.total) * 100).toFixed(1)
+                  : '0.0'}
+                %
+              </Text>
             </View>
 
-            <View style={styles.categoryItem}>
-              <LinearGradient
-                colors={[colors.adolescent + '20', colors.adolescent + '10']}
-                style={styles.categoryIcon}>
+            <View
+              style={[
+                styles.categoryCard,
+                {borderLeftColor: colors.adolescent},
+              ]}>
+              <View
+                style={[
+                  styles.categoryIcon,
+                  {backgroundColor: colors.adolescent + '20'},
+                ]}>
                 <Icon
                   name="account-child"
                   size={20}
                   color={colors.adolescent}
                 />
-              </LinearGradient>
+              </View>
               <Text style={styles.categoryNumber}>{catAgg.Adolescent}</Text>
               <Text style={styles.categoryLabel}>Adolescent</Text>
+              <Text style={styles.categoryPercentage}>
+                {agg.total > 0
+                  ? ((catAgg.Adolescent / agg.total) * 100).toFixed(1)
+                  : '0.0'}
+                %
+              </Text>
             </View>
 
-            <View style={styles.categoryItem}>
-              <LinearGradient
-                colors={[colors.under5 + '20', colors.under5 + '10']}
-                style={styles.categoryIcon}>
+            <View
+              style={[styles.categoryCard, {borderLeftColor: colors.under5}]}>
+              <View
+                style={[
+                  styles.categoryIcon,
+                  {backgroundColor: colors.under5 + '20'},
+                ]}>
                 <Icon name="baby-face" size={20} color={colors.under5} />
-              </LinearGradient>
+              </View>
               <Text style={styles.categoryNumber}>{catAgg.Under5}</Text>
               <Text style={styles.categoryLabel}>Under 5</Text>
+              <Text style={styles.categoryPercentage}>
+                {agg.total > 0
+                  ? ((catAgg.Under5 / agg.total) * 100).toFixed(1)
+                  : '0.0'}
+                %
+              </Text>
             </View>
 
-            <View style={styles.categoryItem}>
-              <LinearGradient
-                colors={[colors.wora + '20', colors.wora + '10']}
-                style={styles.categoryIcon}>
+            <View style={[styles.categoryCard, {borderLeftColor: colors.wora}]}>
+              <View
+                style={[
+                  styles.categoryIcon,
+                  {backgroundColor: colors.wora + '20'},
+                ]}>
                 <Icon name="gender-female" size={20} color={colors.wora} />
-              </LinearGradient>
+              </View>
               <Text style={styles.categoryNumber}>{catAgg.WoRA}</Text>
               <Text style={styles.categoryLabel}>WoRA</Text>
+              <Text style={styles.categoryPercentage}>
+                {agg.total > 0
+                  ? ((catAgg.WoRA / agg.total) * 100).toFixed(1)
+                  : '0.0'}
+                %
+              </Text>
             </View>
           </View>
         </View>
 
-        {/* Health Status Overview */}
-        <View style={styles.dashboardCard}>
-          <View style={styles.cardHeader}>
-            <Icon name="heart-pulse" size={20} color={colors.primary} />
-            <Text style={styles.cardTitle}>Health Status Overview</Text>
-          </View>
-          <View style={styles.statusGrid}>
-            <View style={styles.statusItem}>
-              <LinearGradient
-                colors={[colors.normal + '15', colors.normal + '05']}
-                style={styles.statusGradient}>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    {backgroundColor: colors.normal},
-                  ]}
-                />
-                <Text style={styles.statusNumber}>{animatedValues.normal}</Text>
-                <Text style={styles.statusLabel}>Normal</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statusItem}>
-              <LinearGradient
-                colors={[colors.mild + '15', colors.mild + '05']}
-                style={styles.statusGradient}>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    {backgroundColor: colors.mild},
-                  ]}
-                />
-                <Text style={styles.statusNumber}>{animatedValues.mild}</Text>
-                <Text style={styles.statusLabel}>Mild</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statusItem}>
-              <LinearGradient
-                colors={[colors.moderate + '15', colors.moderate + '05']}
-                style={styles.statusGradient}>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    {backgroundColor: colors.moderate},
-                  ]}
-                />
-                <Text style={styles.statusNumber}>
-                  {animatedValues.moderate}
-                </Text>
-                <Text style={styles.statusLabel}>Moderate</Text>
-              </LinearGradient>
-            </View>
-
-            <View style={styles.statusItem}>
-              <LinearGradient
-                colors={[colors.severe + '15', colors.severe + '05']}
-                style={styles.statusGradient}>
-                <View
-                  style={[
-                    styles.statusIndicator,
-                    {backgroundColor: colors.severe},
-                  ]}
-                />
-                <Text style={styles.statusNumber}>{animatedValues.severe}</Text>
-                <Text style={styles.statusLabel}>Severe</Text>
-              </LinearGradient>
-            </View>
-          </View>
-        </View>
+        {/* Removed duplicate Health Status Overview section - keeping only the enhanced version below */}
       </View>
     ),
-    [filters.dateRange.startDate, filters.dateRange.endDate, dispatch],
+    [animatedValues, catAgg, filters.dateRange, dispatch],
   );
 
   return (
     <View style={styles.screen}>
+      <NetworkStatus />
       <Header
-        title="Reports"
+        title="Reports & Analytics"
         variant="back"
         onBackPress={() => navigation.goBack()}
         onBellPress={() => navigation.navigate('ReportFilters', {filters})}
-        rightIconName="filter-variant"
+        rightIconName="chart-line"
       />
 
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}>
-        {loading ? (
+        {loading || beneficiaryLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={{marginTop: spacing.sm, color: colors.text}}>
-              Loading reports...
+              {beneficiaryLoading
+                ? 'Loading beneficiary data...'
+                : 'Loading reports...'}
             </Text>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
+            <Icon
+              name="alert-circle"
+              size={48}
+              color={colors.error}
+              style={{marginBottom: spacing.md}}
+            />
             <Text
               style={{
                 color: colors.error,
                 textAlign: 'center',
-                marginBottom: spacing.md,
+                marginBottom: spacing.sm,
+                fontSize: 16,
+                fontWeight: '600',
               }}>
-              Error: {error}
+              {error}
+            </Text>
+            <Text
+              style={{
+                color: colors.textSecondary,
+                textAlign: 'center',
+                marginBottom: spacing.lg,
+                fontSize: 14,
+              }}>
+              {error === 'No data available'
+                ? 'No beneficiary data found. Please check your connection or add some beneficiaries first.'
+                : 'Unable to load reports. Please check your connection and try again.'}
             </Text>
             <TouchableOpacity style={styles.retryBtn} onPress={load}>
-              <Text style={{color: '#fff'}}>Retry</Text>
+              <Icon
+                name="refresh"
+                size={16}
+                color="#fff"
+                style={{marginRight: spacing.xs}}
+              />
+              <Text style={{color: '#fff', fontWeight: '600'}}>Retry</Text>
+            </TouchableOpacity>
+
+            {/* Debug button for troubleshooting */}
+            <TouchableOpacity
+              style={[
+                styles.retryBtn,
+                {backgroundColor: colors.textSecondary, marginTop: spacing.sm},
+              ]}
+              onPress={async () => {
+                try {
+                  const {getCachedBeneficiaries} = await import(
+                    '../utils/asyncCache'
+                  );
+                  const cached = await getCachedBeneficiaries();
+                  Alert.alert(
+                    'Debug Info',
+                    `Beneficiaries in Redux: ${
+                      beneficiaries.length
+                    }\nCached beneficiaries: ${
+                      cached ? cached.length : 'null'
+                    }\nLoading: ${loading}\nBeneficiary Loading: ${beneficiaryLoading}\nError: ${error}`,
+                  );
+                } catch (e) {
+                  Alert.alert('Debug Error', e.message);
+                }
+              }}>
+              <Icon
+                name="bug"
+                size={16}
+                color="#fff"
+                style={{marginRight: spacing.xs}}
+              />
+              <Text style={{color: '#fff', fontWeight: '600'}}>Debug Info</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
             {renderModernDashboard()}
 
-            {/* Progress Bars Section */}
-            <View style={styles.progressSection}>
-              <View style={styles.sectionHeader}>
-                <Icon name="trending-up" size={20} color={colors.primary} />
-                <Text style={styles.sectionTitle}>
-                  Health Progress Tracking
-                </Text>
-              </View>
-              {renderAnimatedProgressBar(
-                agg.normal,
-                agg.total,
-                colors.normal,
-                'Normal',
-                normalProgressAnim,
-                0,
-              )}
-              {renderAnimatedProgressBar(
-                agg.mild,
-                agg.total,
-                colors.mild,
-                'Mild',
-                mildProgressAnim,
-                200,
-              )}
-              {renderAnimatedProgressBar(
-                agg.moderate,
-                agg.total,
-                colors.moderate,
-                'Moderate',
-                moderateProgressAnim,
-                400,
-              )}
-              {renderAnimatedProgressBar(
-                agg.severe,
-                agg.total,
-                colors.severe,
-                'Severe',
-                severeProgressAnim,
-                600,
-              )}
-            </View>
-
-            {/* Enhanced Summary Statistics */}
-            <View style={styles.summarySection}>
-              <View style={styles.sectionHeader}>
-                <Icon name="chart-box" size={20} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Summary Statistics</Text>
-              </View>
-              <View style={styles.summaryGrid}>
-                <View style={styles.summaryCard}>
-                  <View style={styles.summaryIconContainer}>
-                    <Icon
-                      name="account-group"
-                      size={24}
-                      color={colors.primary}
-                    />
-                  </View>
-                  <Text style={styles.summaryValue}>{agg.total}</Text>
-                  <Text style={styles.summaryLabel}>Total Beneficiaries</Text>
-                </View>
-
-                <View style={styles.summaryCard}>
-                  <View
-                    style={[
-                      styles.summaryIconContainer,
-                      {backgroundColor: colors.normal + '20'},
-                    ]}>
-                    <Icon name="check-circle" size={24} color={colors.normal} />
-                  </View>
-                  <Text style={[styles.summaryValue, {color: colors.normal}]}>
-                    {agg.total > 0
-                      ? ((agg.normal / agg.total) * 100).toFixed(1)
-                      : '0.0'}
-                    %
+            {/* Comprehensive Charts Section - Replacing 3 redundant sections with 2 effective charts */}
+            <View style={styles.chartsSection}>
+              {chartData ? (
+                renderPieChart(chartData, 'Population Distribution by Category')
+              ) : (
+                <View style={styles.chartCard}>
+                  <Text style={styles.chartTitle}>
+                    Population Distribution by Category
                   </Text>
-                  <Text style={styles.summaryLabel}>Normal Rate</Text>
-                </View>
-
-                <View style={styles.summaryCard}>
-                  <View
-                    style={[
-                      styles.summaryIconContainer,
-                      {backgroundColor: colors.severe + '20'},
-                    ]}>
-                    <Icon name="alert-circle" size={24} color={colors.severe} />
-                  </View>
-                  <Text style={[styles.summaryValue, {color: colors.severe}]}>
-                    {agg.total > 0
-                      ? ((agg.severe / agg.total) * 100).toFixed(1)
-                      : '0.0'}
-                    %
-                  </Text>
-                  <Text style={styles.summaryLabel}>Severe Rate</Text>
-                </View>
-
-                <View style={styles.summaryCard}>
-                  <View
-                    style={[
-                      styles.summaryIconContainer,
-                      {backgroundColor: colors.adolescent + '20'},
-                    ]}>
-                    <Icon
-                      name="account-child"
-                      size={24}
-                      color={colors.adolescent}
-                    />
-                  </View>
                   <Text
-                    style={[styles.summaryValue, {color: colors.adolescent}]}>
-                    {agg.total > 0
-                      ? ((catAgg.Adolescent / agg.total) * 100).toFixed(1)
-                      : '0.0'}
-                    %
+                    style={{
+                      textAlign: 'center',
+                      color: colors.textSecondary,
+                      padding: spacing.md,
+                    }}>
+                    Loading chart data...
                   </Text>
-                  <Text style={styles.summaryLabel}>Adolescent %</Text>
                 </View>
-
-                <View style={styles.summaryCard}>
-                  <View
-                    style={[
-                      styles.summaryIconContainer,
-                      {backgroundColor: colors.pregnant + '20'},
-                    ]}>
-                    <Icon
-                      name="human-pregnant"
-                      size={24}
-                      color={colors.pregnant}
-                    />
-                  </View>
-                  <Text style={[styles.summaryValue, {color: colors.pregnant}]}>
-                    {agg.total > 0
-                      ? ((catAgg.Pregnant / agg.total) * 100).toFixed(1)
-                      : '0.0'}
-                    %
+              )}
+              {severityChartData ? (
+                renderBarChart(severityChartData, 'Health Status Analysis')
+              ) : (
+                <View style={styles.chartCard}>
+                  <Icon name="bar-chart" size={20} color={colors.primary} />
+                  <Text style={styles.chartTitle}>Health Status Analysis</Text>
+                  <Text
+                    style={{
+                      textAlign: 'center',
+                      color: colors.textSecondary,
+                      padding: spacing.md,
+                    }}>
+                    Loading chart data...
                   </Text>
-                  <Text style={styles.summaryLabel}>Pregnant %</Text>
                 </View>
-
-                <View style={styles.summaryCard}>
-                  <View
-                    style={[
-                      styles.summaryIconContainer,
-                      {backgroundColor: colors.unknown + '20'},
-                    ]}>
-                    <Icon
-                      name="help-circle-outline"
-                      size={24}
-                      color={colors.unknown}
-                    />
-                  </View>
-                  <Text style={[styles.summaryValue, {color: colors.unknown}]}>
-                    {agg.unknown}
-                  </Text>
-                  <Text style={styles.summaryLabel}>Unknown Cases</Text>
-                </View>
-              </View>
+              )}
             </View>
 
             <TouchableOpacity style={styles.exportBtn} onPress={exportReport}>
@@ -1333,7 +1619,11 @@ const Reports = ({navigation, route}) => {
 const styles = StyleSheet.create({
   screen: {flex: 1, backgroundColor: colors.background},
   scrollContainer: {flex: 1},
-  container: {padding: spacing.sm, paddingBottom: spacing.lg},
+  container: {
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
   pageTitle: {
     ...typography.subtitle,
     marginBottom: spacing.sm,
@@ -1367,19 +1657,24 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     paddingVertical: spacing.xl,
   },
   retryBtn: {
     backgroundColor: colors.primary,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
     ...shadows.sm,
   },
   exportBtn: {
     backgroundColor: colors.primary,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
     alignItems: 'center',
     marginBottom: spacing.sm,
@@ -1402,7 +1697,8 @@ const styles = StyleSheet.create({
   dataTable: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.sm,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     ...shadows.sm,
   },
   tableRow: {
@@ -1429,51 +1725,12 @@ const styles = StyleSheet.create({
   progressSection: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.sm,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
     ...shadows.sm,
   },
-  progressContainer: {
-    marginBottom: spacing.sm,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  progressLabel: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: '500',
-    fontSize: 14,
-    flex: 1,
-  },
-  progressValues: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  progressValue: {
-    ...typography.caption,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  progressBarBackground: {
-    height: 12,
-    backgroundColor: colors.borderLight,
-    borderRadius: 6,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 6,
-  },
-  progressPercentage: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
+  // Removed unused progress bar styles for better performance
   chartsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1536,7 +1793,8 @@ const styles = StyleSheet.create({
   summaryCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.sm,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     height: 120,
     justifyContent: 'center',
     ...shadows.sm,
@@ -1611,7 +1869,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     alignItems: 'center',
     shadowColor: colors.black,
     shadowOffset: {width: 0, height: 2},
@@ -1646,7 +1905,8 @@ const styles = StyleSheet.create({
   dashboardCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     marginBottom: spacing.md,
     shadowColor: colors.black,
     shadowOffset: {width: 0, height: 2},
@@ -1665,6 +1925,22 @@ const styles = StyleSheet.create({
   categoryGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+
+  categoryCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    borderLeftWidth: 4,
+    shadowColor: colors.black,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 
   categoryItem: {
@@ -1673,24 +1949,32 @@ const styles = StyleSheet.create({
   },
 
   categoryIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
 
   categoryNumber: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 2,
   },
 
   categoryLabel: {
-    fontSize: 9,
+    fontSize: 10,
     color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+
+  categoryPercentage: {
+    fontSize: 9,
+    color: colors.primary,
+    fontWeight: '600',
     textAlign: 'center',
   },
 
@@ -1702,9 +1986,15 @@ const styles = StyleSheet.create({
   statusItem: {
     flex: 1,
     alignItems: 'center',
-    padding: spacing.sm,
-    borderRadius: borderRadius.sm,
-    marginHorizontal: 2,
+    paddingVertical: spacing.sm,
+  },
+
+  statusCard: {
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    borderRadius: borderRadius.md,
+    minWidth: 70,
   },
 
   statusIndicator: {
@@ -1728,74 +2018,51 @@ const styles = StyleSheet.create({
   },
 
   chartsSection: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     gap: spacing.md,
     marginBottom: spacing.lg,
     paddingHorizontal: spacing.sm,
   },
 
   chartCard: {
-    flex: 1,
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     shadowColor: colors.black,
     shadowOffset: {width: 0, height: 4},
     shadowOpacity: 0.15,
     shadowRadius: 8,
     elevation: 6,
     minHeight: 250,
+    width: '100%',
+    marginBottom: spacing.md,
   },
 
-  // Welcome Header
-  welcomeHeader: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+  dateSection: {
     backgroundColor: colors.surface,
-    marginHorizontal: spacing.md,
     marginBottom: spacing.md,
     borderRadius: borderRadius.lg,
+    paddingVertical: spacing.md,
     ...shadows.sm,
-  },
-  headerIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  welcomeTitle: {
-    ...typography.title,
-    color: colors.text,
-    fontWeight: typography.weights.bold,
-    marginBottom: spacing.xs,
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
   },
   dateDisplayContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: spacing.sm,
-    backgroundColor: colors.primary + '10',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.horizontal,
+  },
+  dateInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
   dateDisplayText: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginLeft: spacing.xs,
-    fontWeight: typography.weights.medium,
+    ...typography.body,
+    color: colors.text,
+    marginLeft: spacing.sm,
+    fontWeight: typography.weights.semibold,
+    fontSize: 16,
   },
   todayButton: {
     backgroundColor: colors.primary,
@@ -1811,34 +2078,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // Enhanced Metric Cards
-  metricGradient: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
-    alignItems: 'center',
-  },
-
-  // Enhanced Category Icons
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.xs,
-  },
-
-  // Enhanced Status Items
-  statusGradient: {
-    flex: 1,
-    alignItems: 'center',
-    padding: spacing.sm,
-    borderRadius: borderRadius.md,
-    marginHorizontal: 2,
-  },
-
-  // Chart Components
   chartHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1854,102 +2093,26 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
   },
 
-  // Pie Chart Styles
-  pieChartContainer: {
-    flexDirection: 'row',
+  chartContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.md,
-  },
-  pieChart: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    marginRight: spacing.lg,
-    backgroundColor: colors.background,
-    borderWidth: 2,
-    borderColor: colors.borderLight,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.sm,
-  },
-  pieSegment: {
-    margin: 2,
-  },
-  pieSlice: {
-    borderRadius: 20,
-  },
-  pieLegend: {
-    flex: 1,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  legendColor: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: spacing.sm,
-  },
-  legendLabel: {
-    ...typography.caption,
-    color: colors.text,
-    flex: 1,
-  },
-  legendValue: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: typography.weights.semibold,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    shadowColor: colors.black,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    overflow: 'hidden',
   },
 
-  // Bar Chart Styles
-  barChartContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'flex-end',
-    height: 150,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  barItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  barContainer: {
-    height: 100,
-    width: 30,
-    justifyContent: 'flex-end',
-    marginBottom: spacing.sm,
-    backgroundColor: colors.background,
-    borderRadius: 4,
-  },
-  bar: {
-    width: '100%',
-    borderRadius: 4,
-    minHeight: 8,
-  },
-  barLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontSize: 10,
-  },
-  barValue: {
-    ...typography.caption,
-    color: colors.text,
-    fontWeight: typography.weights.semibold,
-    fontSize: 12,
-  },
-
-  // Enhanced Progress Section
   progressSection: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     marginBottom: spacing.md,
     ...shadows.md,
   },
@@ -1968,59 +2131,12 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
   },
 
-  // Enhanced Summary Statistics
-  summarySection: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.md,
-    ...shadows.md,
-  },
-  summaryGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  summaryCard: {
-    width: '48%',
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-    ...shadows.sm,
-  },
-  summaryIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.sm,
-  },
-  summaryValue: {
-    ...typography.title,
-    fontWeight: typography.weights.bold,
-    color: colors.text,
-    marginBottom: spacing.xs,
-    fontSize: 18,
-  },
-  summaryLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    fontSize: 12,
-  },
-
-  // Enhanced Export Button
   exportGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
   },
   exportBtnText: {
@@ -2029,6 +2145,33 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     marginLeft: spacing.xs,
     fontSize: 14,
+  },
+
+  legendContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.sm,
+    marginVertical: spacing.xs,
+  },
+  legendColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: spacing.xs,
+  },
+  legendText: {
+    ...typography.caption,
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: typography.weights.medium,
   },
 });
 

@@ -26,11 +26,19 @@ const FALLBACK_IPS = [
 const FALLBACK = `http://${SERVER_CONFIGS.EC2_PUBLIC_IP}:3000`; // Use EC2 server for production
 export const API_BASE = Config && Config.API_BASE ? Config.API_BASE : FALLBACK;
 
+// Debug logging
+console.log('[API] Config:', Config);
+console.log('[API] API_BASE set to:', API_BASE);
+console.log('[API] FALLBACK:', FALLBACK);
+
 // Export server configs for debugging
 export const SERVER_CONFIG = SERVER_CONFIGS;
 
 async function request(path, opts = {}) {
   const url = `${API_BASE}${path.startsWith('/') ? path : '/' + path}`;
+
+  console.log('[API] Making request to:', url);
+  console.log('[API] Request options:', opts);
 
   // Get authentication token from Redux store
   const state = store.getState();
@@ -48,8 +56,11 @@ async function request(path, opts = {}) {
       typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body);
 
   try {
+    console.log('[API] Request config:', cfg);
     const res = await fetch(url, cfg);
+    console.log('[API] Response status:', res.status);
     const text = await res.text();
+    console.log('[API] Response text:', text);
     let data = null;
     try {
       data = text ? JSON.parse(text) : null;
@@ -57,8 +68,15 @@ async function request(path, opts = {}) {
       data = text;
     }
     if (!res.ok) {
+      console.log(
+        '[API] Request failed with status:',
+        res.status,
+        'data:',
+        data,
+      );
       throw {status: res.status, data};
     }
+    console.log('[API] Request successful, data:', data);
     return data;
   } catch (error) {
     console.log('[API] Network error:', error);
@@ -81,6 +99,11 @@ export const API = {
     request('/api/auth/admin/login', {
       method: 'POST',
       body: {username: u, password: p},
+    }),
+  patientLogin: role =>
+    request('/api/auth/patient/login', {
+      method: 'POST',
+      body: {role: role},
     }),
 
   getBeneficiaries: (limit = 1000) =>

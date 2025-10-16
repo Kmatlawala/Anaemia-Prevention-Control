@@ -122,15 +122,8 @@ const FollowUp = ({navigation}) => {
   const loadWorklist = useCallback(async () => {
     setLoading(true);
     try {
-      console.log('[FollowUp] Loading worklist...');
-      // Load all candidates from backend
       const response = await API.getBeneficiariesWithData(1000);
-      console.log('[FollowUp] API response:', response);
-
-      // Extract data from response
       const all = response?.data || response;
-      console.log('[FollowUp] Extracted beneficiaries:', all);
-
       if (!Array.isArray(all)) {
         console.warn('[FollowUp] API returned non-array:', all);
         setFull([]);
@@ -139,7 +132,6 @@ const FollowUp = ({navigation}) => {
       }
 
       const rows = all.filter(b => b.follow_up_due && !b.follow_up_done);
-      console.log('[FollowUp] Filtered follow-ups:', rows.length);
 
       rows.sort((a, b) =>
         String(a.follow_up_due).localeCompare(String(b.follow_up_due)),
@@ -151,7 +143,6 @@ const FollowUp = ({navigation}) => {
           dayjs(i.follow_up_due).format('YYYY-MM-DD') ===
           (filterDate || dayjs().format('YYYY-MM-DD')),
       );
-      console.log('[FollowUp] Initial list for date:', initial.length);
       setList(initial);
     } catch (e) {
       console.error('[FollowUp] Load error:', e);
@@ -283,9 +274,10 @@ const FollowUp = ({navigation}) => {
   return (
     <View style={styles.screen}>
       <Header
-        title="Follow-Up Worklist"
+        title="Follow-Up Management"
         variant="back"
         onBackPress={() => navigation.goBack()}
+        rightIconName="calendar-check"
       />
 
       <Animated.View
@@ -296,17 +288,6 @@ const FollowUp = ({navigation}) => {
             transform: [{translateY: slideAnim}],
           },
         ]}>
-        {/* Welcome Header */}
-        <View style={styles.welcomeHeader}>
-          <View style={styles.headerIconContainer}>
-            <Icon name="calendar-check" size={32} color={colors.primary} />
-          </View>
-          <Text style={styles.welcomeTitle}>Follow-Up Management</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Track and manage patient follow-up appointments
-          </Text>
-        </View>
-
         {/* Date filter section */}
         <View style={styles.dateSection}>
           <View style={styles.dateHeader}>
@@ -427,47 +408,17 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
   },
 
   // Welcome Header
-  welcomeHeader: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.surface,
-    marginBottom: spacing.md,
-    borderRadius: borderRadius.lg,
-    ...shadows.sm,
-  },
-  headerIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  welcomeTitle: {
-    ...typography.title,
-    color: colors.text,
-    fontWeight: typography.weights.bold,
-    marginBottom: spacing.xs,
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
 
   cardContainer: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
     flex: 1,
@@ -478,7 +429,8 @@ const styles = StyleSheet.create({
   dateSection: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     marginBottom: spacing.md,
     ...shadows.sm,
   },
@@ -512,7 +464,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
     paddingVertical: spacing.md,
     ...shadows.sm,
   },
@@ -523,13 +475,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
   },
   calendarButton: {
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
     backgroundColor: colors.primary + '10',
   },
   todayButton: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
@@ -553,7 +506,8 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
   },
   cardContent: {
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -617,7 +571,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
   },
   btnText: {
     color: colors.white,
@@ -634,7 +588,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     backgroundColor: colors.white,
   },
   btnOutlineText: {
@@ -649,7 +603,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xl * 2,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.horizontal,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
     margin: spacing.md,
@@ -679,7 +633,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: spacing.lg,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
   },
   emptyActions: {
     flexDirection: 'row',
@@ -694,7 +648,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary + '30',
     borderRadius: borderRadius.md,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     ...shadows.sm,
   },
   emptyActionText: {

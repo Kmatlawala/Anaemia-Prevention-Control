@@ -1,4 +1,3 @@
-// src/screens/Registration.js
 import React, {useEffect, useRef, useState, useCallback, useMemo} from 'react';
 import {
   View,
@@ -22,6 +21,7 @@ import LinearGradient from 'react-native-linear-gradient';
 import Input from '../components/Input';
 import Select from '../components/Select';
 import Header from '../components/Header';
+import ProgressIndicator from '../components/ProgressIndicator';
 import {hashAadhaar, maskAadhaar} from '../utils/hash';
 import {parseFieldsFromText} from '../utils/ocr';
 import {
@@ -30,16 +30,26 @@ import {
   typography,
   borderRadius,
   shadows,
-  platform,
 } from '../theme/theme';
+import DocumentScanner from 'react-native-document-scanner-plugin';
 
 // project-specific
 import {API} from '../utils/api';
-import {saveDocumentFile} from '../utils/filestore';
 import {getRole} from '../utils/role';
 import {sendPushToSelf} from '../utils/notifications';
+import {useDispatch, useSelector} from 'react-redux';
+import {
+  addBeneficiary,
+  updateBeneficiary,
+  selectBeneficiaries,
+  selectBeneficiaryLoading,
+  selectBeneficiaryError,
+} from '../store/beneficiarySlice';
+import NetworkStatus from '../components/NetworkStatus';
+import {debugCacheStatus, isOnline} from '../utils/asyncCache';
 
 const Registration = ({navigation, route}) => {
+  const dispatch = useDispatch();
   const [aadhaar, setAadhaar] = useState('');
   const [name, setName] = useState('');
   const [dob, setDob] = useState('');
@@ -205,7 +215,6 @@ const Registration = ({navigation, route}) => {
     async (side = 'front') => {
       setProcessing(true);
       try {
-        const DocumentScanner = require('react-native-document-scanner-plugin');
         const result = await DocumentScanner.scanDocument({
           croppedImageQuality: 90,
           maxNumDocuments: 1,
@@ -285,22 +294,13 @@ const Registration = ({navigation, route}) => {
       if (isScannerOpenRef.current) return;
       isScannerOpenRef.current = true;
       try {
-        const ok = await ensureCameraPermission();
-        if (!ok) {
-          Alert.alert(
-            'Permission required',
-            'Camera permission is required to scan documents.',
-          );
-          isScannerOpenRef.current = false;
-          return;
-        }
         setTimeout(() => scanDocument(side), 120);
       } catch {
         Alert.alert('Scanner error', 'Unable to open scanner.');
         isScannerOpenRef.current = false;
       }
     },
-    [ensureCameraPermission, scanDocument],
+    [scanDocument],
   );
 
   // ---------- Save ----------
@@ -380,110 +380,151 @@ const Registration = ({navigation, route}) => {
         short_id: shortId, // <-- Added to store the 4-character unique ID
       };
 
+      // Debug cache status before save
+      await debugCacheStatus();
+      const online = await isOnline();
+      console.log('[Registration] Network status:', {online});
+      let saveResult;
       if (editingId) {
-        await API.updateBeneficiary(editingId, payload);
+        // Update beneficiary using Redux (with offline support)
+        saveResult = await dispatch(
+          updateBeneficiary({id: editingId, updates: payload}),
+        );
       } else {
-        await API.createBeneficiary(payload);
+        // Create beneficiary using Redux (with offline support)
+        saveResult = await dispatch(addBeneficiary(payload));
       }
 
-      // Send SMS using the same method as beneficiary update (fixedSMS)
-      try {
-        // Add a small delay to ensure API call is complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
+      // Check if save was successful
 
-        const {sendSMSToBeneficiary} = await import('../utils/fixedSMS');
+      if (saveResult.type.endsWith('/rejected')) {
+        throw new Error(saveResult.payload || 'Save operation failed');
+      }
 
-        // Format doctor phone number properly
-        const formattedDoctorPhone = doctorPhone
-          ? doctorPhone.replace(/\D/g, '')
-          : '';
-        const doctorInfo =
-          doctorName && formattedDoctorPhone
-            ? `${doctorName} (${formattedDoctorPhone})`
-            : doctorName || 'Contact us for details';
+      // Debug cache status after save
+      await debugCacheStatus();
 
-        const message = `Hello ${name}, your registration with Animia is successful. Your ID: ${shortId}. Doctor: ${doctorInfo}. Thank you!`;
-        console.log('[Registration] SMS message:', message);
-        console.log(
-          '[Registration] Doctor phone formatted:',
-          formattedDoctorPhone,
-        );
+      // Send SMS - SMS doesn't require internet connectivity
+      console.log(
+        '[Registration] Attempting to send SMS regardless of network status...',
+      );
 
-        // Create beneficiary object for SMS sending (same as update)
-        const beneficiaryData = {
-          name: name,
-          phone: phone,
-          alt_phone: altPhone,
-          doctor_phone: doctorPhone,
-          short_id: shortId,
-        };
-
-        // Send SMS to all contacts (primary, alternative, doctor) - same as update
-        // Add timeout to prevent SMS from getting stuck
-        const smsPromise = sendSMSToBeneficiary(beneficiaryData, message);
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(
-            () => reject(new Error('SMS timeout after 30 seconds')),
-            30000,
-          ),
-        );
-
-        const smsResult = await Promise.race([smsPromise, timeoutPromise]);
-        console.log('[Registration] Multi-contact SMS result:', smsResult);
-
-        // If SMS failed, try sending to primary phone only as fallback
-        if (!smsResult.success && beneficiaryData.phone) {
+      // Always try to send SMS since it doesn't require internet
+      {
+        try {
           console.log(
-            '[Registration] Trying fallback SMS to primary phone only...',
+            '[Registration] Device is online, starting SMS sending process...',
           );
-          try {
-            const {sendSMS} = await import('../utils/fixedSMS');
-            const fallbackResult = await sendSMS(
-              beneficiaryData.phone,
-              message,
-            );
-            if (fallbackResult) {
-              console.log('[Registration] Fallback SMS successful');
-              Alert.alert(
-                'SMS Sent (Fallback)',
-                'SMS sent to primary phone number. Alternative contacts may not have received the message.',
+          // Add a small delay to ensure API call is complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          const {sendSMSToBeneficiary} = await import('../utils/fixedSMS');
+
+          // Format doctor phone number properly
+          const formattedDoctorPhone = doctorPhone
+            ? doctorPhone.replace(/\D/g, '')
+            : '';
+          const doctorInfo =
+            doctorName && formattedDoctorPhone
+              ? `${doctorName} (${formattedDoctorPhone})`
+              : doctorName || 'Contact us for details';
+
+          const message = `Hello ${name}, your registration with Anaemia is successful. Your ID: ${shortId}. Doctor: ${doctorInfo}. Thank you!`;
+
+          // Create beneficiary object for SMS sending (same as update)
+          const beneficiaryData = {
+            name: name,
+            phone: phone,
+            alt_phone: altPhone,
+            doctor_phone: doctorPhone,
+            short_id: shortId,
+          };
+
+          console.log('[Registration] SMS data:', {
+            beneficiaryData,
+            message,
+            online,
+            phoneValidation: {
+              phone: phone ? phone.replace(/\D/g, '') : null,
+              altPhone: altPhone ? altPhone.replace(/\D/g, '') : null,
+              doctorPhone: doctorPhone ? doctorPhone.replace(/\D/g, '') : null,
+            },
+          });
+
+          // Send SMS to all contacts (primary, alternative, doctor) - same as update
+          console.log('[Registration] About to call sendSMSToBeneficiary...');
+
+          // Try a simple SMS first to test if SMS is working
+          if (beneficiaryData.phone) {
+            try {
+              const {sendSMS} = await import('../utils/fixedSMS');
+              console.log(
+                '[Registration] Testing simple SMS to primary phone...',
               );
-              return; // Exit early if fallback succeeded
+              const testResult = await sendSMS(beneficiaryData.phone, message);
+              console.log('[Registration] Simple SMS test result:', testResult);
+            } catch (testError) {
+              console.error(
+                '[Registration] Simple SMS test failed:',
+                testError,
+              );
             }
-          } catch (fallbackError) {
-            console.error(
-              '[Registration] Fallback SMS also failed:',
-              fallbackError,
+          }
+
+          // Add timeout to prevent SMS from getting stuck
+          const smsPromise = sendSMSToBeneficiary(beneficiaryData, message);
+          const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(
+              () => reject(new Error('SMS timeout after 30 seconds')),
+              30000,
+            ),
+          );
+
+          console.log('[Registration] Waiting for SMS result...');
+          const smsResult = await Promise.race([smsPromise, timeoutPromise]);
+          console.log('[Registration] SMS result received:', smsResult);
+
+          // If SMS failed, try sending to primary phone only as fallback
+          if (!smsResult.success && beneficiaryData.phone) {
+            try {
+              const {sendSMS} = await import('../utils/fixedSMS');
+              const fallbackResult = await sendSMS(
+                beneficiaryData.phone,
+                message,
+              );
+              if (fallbackResult) {
+                Alert.alert(
+                  'SMS Sent (Fallback)',
+                  'SMS sent to primary phone number. Alternative contacts may not have received the message.',
+                );
+                // Don't return here - continue with the rest of the function
+              }
+            } catch (fallbackError) {
+              console.error(
+                '[Registration] Fallback SMS failed:',
+                fallbackError,
+              );
+            }
+          }
+
+          // SMS function already shows its own alerts, so we don't need to show additional ones
+          console.log(
+            '[Registration] SMS process completed with result:',
+            smsResult,
+          );
+        } catch (smsError) {
+          console.error('[Registration] Failed to send SMS:', smsError);
+          if (smsError.message.includes('timeout')) {
+            Alert.alert(
+              'SMS Timeout',
+              'SMS sending took too long. Please check your phone for messages or try again.',
+            );
+          } else {
+            Alert.alert(
+              'SMS Error',
+              'SMS sending failed. Please try again or send manually.',
             );
           }
-        }
-
-        // Show SMS result to user
-        if (smsResult.success) {
-          Alert.alert(
-            'SMS Sent',
-            `SMS sent to ${smsResult.summary?.successful || 0}/${
-              smsResult.summary?.total || 0
-            } contacts. Check your phones for the messages.`,
-          );
-        } else {
-          Alert.alert(
-            'SMS Failed',
-            'Failed to send SMS. Please try again or send manually.',
-          );
-        }
-      } catch (smsError) {
-        console.error('[Registration] Failed to send SMS:', smsError);
-        if (smsError.message.includes('timeout')) {
-          Alert.alert(
-            'SMS Timeout',
-            'SMS sending took too long. Please check your phone for messages or try again.',
-          );
-        } else {
-          Alert.alert(
-            'SMS Error',
-            'SMS sending failed. Please try again or send manually.',
-          );
         }
       }
 
@@ -502,12 +543,7 @@ const Registration = ({navigation, route}) => {
             id: editingId ? String(editingId) : undefined,
           },
         );
-        console.log('[Registration] Push notification sent successfully');
       } catch (notificationError) {
-        console.error(
-          '[Registration] Push notification failed:',
-          notificationError,
-        );
         // Fallback to local notification
         try {
           const {showLocalNotification} = await import(
@@ -517,52 +553,44 @@ const Registration = ({navigation, route}) => {
             editingId ? 'Update successful' : 'Registration successful',
             `Follow-up due on ${followUpDate}. ID: ${shortId}.`,
           );
-          console.log('[Registration] Local notification sent as fallback');
-        } catch (localNotificationError) {
-          console.error(
-            '[Registration] Local notification also failed:',
-            localNotificationError,
-          );
-        }
+        } catch (localNotificationError) {}
       }
+      // Show appropriate success message based on network status
+      const successMessage = online
+        ? editingId
+          ? `Beneficiary updated successfully. ID: ${shortId}`
+          : `Beneficiary registered successfully. ID: ${shortId}`
+        : editingId
+        ? `Beneficiary updated offline. Will sync when online. ID: ${shortId}`
+        : `Beneficiary registered offline. Will sync when online. ID: ${shortId}`;
 
-      Alert.alert(
-        'Saved',
-        editingId
-          ? `Beneficiary updated. ID: ${shortId}`
-          : `Beneficiary registered successfully. ID: ${shortId}`,
-      );
-      // reset
-      setAadhaar('');
-      setName('');
-      setDob('');
-      setCategory('');
-      setAddress('');
-      setPhone('');
-      setAltPhone('');
-      setDoctorName('');
-      setDoctorPhone('');
-      setRegDate('');
-      setFrontUri(null);
-      setBackUri(null);
-      setStep('front');
-      setEditingId(null);
-      setShowErrors(false);
-      setErrors({});
-      navigation.navigate('Dashboard');
+      Alert.alert('Saved', successMessage);
+
+      // Navigate to Screening with beneficiary data
+      navigation.navigate('Screening', {
+        beneficiaryData: {
+          id: saveResult.payload?.id || editingId,
+          name,
+          short_id: shortId,
+          phone,
+          doctor_name: doctorName,
+          doctor_phone: doctorPhone,
+        },
+        fromFlow: true,
+      });
     } catch (e) {
-      Alert.alert('Save failed', 'Unable to save beneficiary. See logs.');
+      const errorMessage =
+        e.message || 'Unable to save beneficiary. Please try again.';
+      Alert.alert('Save failed', errorMessage);
     } finally {
       setProcessing(false);
     }
   };
 
-  // Live age display (just read-only info)
   const liveAge = dob
     ? Math.max(0, Math.floor(dayjs().diff(dayjs(dob), 'year')))
     : null;
 
-  // Helper to style inputs only when Save pressed
   const errStyle = key =>
     showErrors && errors[key] ? styles.inputError : null;
   const errText = key =>
@@ -575,24 +603,17 @@ const Registration = ({navigation, route}) => {
       ref={scrollRef}
       style={styles.container}
       keyboardShouldPersistTaps="handled">
+      <NetworkStatus />
       <Header
         onMenuPress={() => navigation.goBack()}
-        title="Register Beneficiary"
+        title="New Beneficiary Registration"
         variant="back"
+        rightIconName="account-plus"
       />
 
-      <Animated.View style={{opacity: fade}}>
-        {/* Welcome Header */}
-        <View style={styles.welcomeHeader}>
-          <View style={styles.iconContainer}>
-            <Icon name="account-plus" size={32} color={colors.primary} />
-          </View>
-          <Text style={styles.welcomeTitle}>New Beneficiary Registration</Text>
-          <Text style={styles.welcomeSubtitle}>
-            Complete the form to register a new beneficiary
-          </Text>
-        </View>
+      <ProgressIndicator currentStep={1} totalSteps={3} />
 
+      <Animated.View style={{opacity: fade}}>
         <View style={styles.card}>
           <View style={styles.cardHeader}>
             <Icon name="camera-document" size={24} color={colors.primary} />
@@ -669,7 +690,6 @@ const Registration = ({navigation, route}) => {
             <Text style={styles.cardTitle}>Personal Details</Text>
           </View>
 
-          {/* Aadhaar - MANDATORY */}
           <Input
             ref={refs.aadhaar}
             placeholder="Aadhaar (12 digits)"
@@ -689,7 +709,6 @@ const Registration = ({navigation, route}) => {
           />
           {errText('name')}
 
-          {/* Date of Birth */}
           <View style={{marginBottom: spacing.xs}}>
             <Text style={styles.dateLabel}>Date of Birth</Text>
             <TouchableOpacity
@@ -702,7 +721,6 @@ const Registration = ({navigation, route}) => {
           </View>
           {errText('dob')}
 
-          {/* Registration Date */}
           <View style={{marginBottom: spacing.sm}}>
             <Text style={styles.dateLabel}>Registration Date</Text>
             <TouchableOpacity
@@ -734,7 +752,6 @@ const Registration = ({navigation, route}) => {
           />
           {errText('category')}
 
-          {/* BOTH phone numbers mandatory */}
           <Input
             ref={refs.phone}
             placeholder="Mobile (10 digits)"
@@ -799,7 +816,6 @@ const Registration = ({navigation, route}) => {
         </TouchableOpacity>
       </Animated.View>
 
-      {/* DateTimePicker for Date of Birth */}
       {showDobPicker && DateTimePicker && (
         <DateTimePicker
           mode="date"
@@ -815,7 +831,6 @@ const Registration = ({navigation, route}) => {
         />
       )}
 
-      {/* DateTimePicker for Registration Date */}
       {showRegDatePicker && DateTimePicker && (
         <DateTimePicker
           mode="date"
@@ -837,46 +852,12 @@ const Registration = ({navigation, route}) => {
 const styles = StyleSheet.create({
   container: {flex: 1, backgroundColor: colors.background},
 
-  // Welcome Header
-  welcomeHeader: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    backgroundColor: colors.surface,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.sm,
-    borderRadius: borderRadius.lg,
-    ...shadows.sm,
-  },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: colors.primary + '15',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.sm,
-  },
-  welcomeTitle: {
-    ...typography.title,
-    color: colors.text,
-    fontWeight: typography.weights.bold,
-    marginBottom: spacing.xs,
-    textAlign: 'center',
-  },
-  welcomeSubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-
   card: {
     backgroundColor: colors.surface,
     marginBottom: spacing.md,
-    marginHorizontal: spacing.md,
-    padding: spacing.lg,
+    marginHorizontal: spacing.horizontal,
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.lg,
     borderRadius: borderRadius.lg,
     ...shadows.md,
   },
@@ -904,7 +885,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 2,
     borderColor: colors.primary,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.surface,
     ...shadows.sm,
@@ -929,7 +911,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 2,
     borderColor: colors.border,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.surface,
     ...shadows.sm,
@@ -948,7 +931,8 @@ const styles = StyleSheet.create({
   previewRow: {
     marginTop: spacing.md,
     backgroundColor: colors.background,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.borderLight,
@@ -989,10 +973,11 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: colors.primary,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     borderRadius: borderRadius.lg,
     alignItems: 'center',
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.horizontal,
     marginBottom: spacing.xl,
     ...shadows.md,
     minHeight: 56,
@@ -1025,7 +1010,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderLight,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     height: 48,
     marginBottom: spacing.md,
   },

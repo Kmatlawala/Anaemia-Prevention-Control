@@ -41,9 +41,9 @@ const CONTENT = {
         {
           title: 'Dietary Advice',
           points: [
-            'Eat iron and protein-rich foods',
+            'Take iron and protein-rich foods',
             'Include vitamin C-rich foods',
-            'Avoid tea/coffee near meals',
+            'Avoid tea/coffee near meal times',
           ],
         },
         {
@@ -51,11 +51,11 @@ const CONTENT = {
           points: [
             'Mild constipation/dark stools are normal',
             'Take IFA after meals if nausea occurs',
-            'Report severe side effects to health worker',
+            'Report to health worker if severe side effects occur',
           ],
         },
         {
-          title: 'Deworming',
+          title: 'Deworming Medicine',
           points: [
             'Take albendazole once during pregnancy (2nd trimester) as advised',
             'Maintain hygiene',
@@ -64,7 +64,7 @@ const CONTENT = {
         {
           title: 'ANC and Danger Signs',
           points: [
-            'Attend all ANC checkups',
+            'Attend all ANC check-ups',
             'Take adequate rest and balanced diet',
             'Report danger signs: breathing difficulty, palpitations, dizziness, bleeding',
           ],
@@ -72,7 +72,7 @@ const CONTENT = {
         {
           title: 'Follow-up',
           points: [
-            'Regular Hb testing at intervals',
+            'Get regular Hb testing done at intervals',
             'Keep ID/application code for records',
           ],
         },
@@ -92,32 +92,32 @@ const CONTENT = {
           ],
         },
         {
-          title: 'આહાર સલાહ',
+          title: 'આહારની સલાહ',
           points: [
-            'આયર્ન અને પ્રોટીન સમૃદ્ધ ખોરાક ખાઓ',
-            'વિટામિન સી-સમૃદ્ધ ખોરાકનો સમાવેશ કરો',
-            'ભોજનની નજીક ચા/કોફી ટાળો',
+            'આયર્ન અને પ્રોટીનથી ભરપૂર ખોરાક લો',
+            'વિટામિન સીથી ભરપૂર ખોરાકનો સમાવેશ કરો',
+            'ભોજનની નજીકના સમયે ચા/કોફી ટાળો',
           ],
         },
         {
-          title: 'આડઅસર વ્યવસ્થાપન',
+          title: 'આડઅસરનું સંચાલન',
           points: [
-            'હળવો કબજિયાત/કાળા સ્ટૂલ સામાન્ય છે',
-            'જો ઉબકા આવે તો ભોજન પછી આઇએફએ લો',
-            'ગંભીર આડઅસરોની જાણ આરોગ્ય કાર્યકરને કરો',
+            'હળવો કબજિયાત/કાળા ઝાડા સામાન્ય છે',
+            'જો ઉબકા આવે તો ભોજન પછી IFA લો',
+            'ગંભીર આડઅસર હોય તો આરોગ્ય કાર્યકરને જાણ કરો',
           ],
         },
         {
-          title: 'કૃમિનાશક',
+          title: 'કૃમિનાશક દવા',
           points: [
-            'સલાહ મુજબ ગર્ભાવસ્થા દરમિયાન (બીજા ત્રિમાસિકમાં) એકવાર આલ્બેન્ડાઝોલ લો',
+            'ગર્ભાવસ્થા દરમિયાન એકવાર (બીજા ત્રિમાસિકમાં) સલાહ મુજબ આલ્બેન્ડાઝોલ લો',
             'સ્વચ્છતા જાળવો',
           ],
         },
         {
-          title: 'એએનસી અને જોખમી ચિહ્નો',
+          title: 'ANC (એએનસી) અને જોખમી ચિહ્નો',
           points: [
-            'તમામ એએનસી (ANC) તપાસમાં હાજરી આપો',
+            'તમામ ANC ચેક-અપ્સ માટે હાજર રહો',
             'પૂરતો આરામ અને સંતુલિત આહાર લો',
             'જોખમી ચિહ્નોની જાણ કરો: શ્વાસ લેવામાં તકલીફ, ધબકારા, ચક્કર આવવા, રક્તસ્રાવ',
           ],
@@ -125,7 +125,7 @@ const CONTENT = {
         {
           title: 'ફોલો-અપ',
           points: [
-            'નિયમિત અંતરાલે નિયમિત Hb પરીક્ષણ',
+            'નિયમિત અંતરાલે Hb ટેસ્ટિંગ કરાવો',
             'રેકોર્ડ માટે આઈડી/એપ્લિકેશન કોડ સાથે રાખો',
           ],
         },
@@ -145,32 +145,32 @@ const CONTENT = {
           ],
         },
         {
-          title: 'आहार सलाह',
+          title: 'आहार की सलाह',
           points: [
-            'आयरन और प्रोटीन युक्त भोजन खाएँ',
-            'विटामिन सी युक्त भोजन शामिल करें',
-            'भोजन के पास चाय/कॉफी से बचें',
+            'आयरन और प्रोटीन से भरपूर भोजन लें',
+            'विटामिन सी से भरपूर भोजन शामिल करें',
+            'भोजन के नज़दीकी समय में चाय/कॉफी से बचें',
           ],
         },
         {
-          title: 'साइड इफेक्ट प्रबंधन',
+          title: 'साइड इफेक्ट का संचालन',
           points: [
             'हल्का कब्ज/काले मल सामान्य है',
             'उल्टी आए तो भोजन के बाद आईएफए लें',
-            'गंभीर साइड इफेक्ट्स की जानकारी स्वास्थ्य कर्मी को दें',
+            'गंभीर साइड इफेक्ट हो तो स्वास्थ्य कर्मी को जानकारी दें',
           ],
         },
         {
-          title: 'कृमिनाशक',
+          title: 'कृमिनाशक दवा',
           points: [
-            'सलाह अनुसार गर्भावस्था के दौरान (दूसरी तिमाही में) एक बार अल्बेंडाज़ोल लें',
+            'गर्भावस्था के दौरान एक बार (दूसरी तिमाही में) सलाह अनुसार अल्बेंडाज़ोल लें',
             'स्वच्छता बनाए रखें',
           ],
         },
         {
-          title: 'एएनसी और खतरे के संकेत',
+          title: 'एएनसी (ANC) और खतरे के संकेत',
           points: [
-            'सभी एएनसी जाँच में उपस्थित रहें',
+            'सभी ANC चेक-अप्स के लिए उपस्थित रहें',
             'पर्याप्त आराम और संतुलित आहार लें',
             'खतरे के संकेतों की जानकारी दें: साँस लेने में तकलीफ, धड़कन, चक्कर, रक्तस्राव',
           ],
@@ -178,7 +178,7 @@ const CONTENT = {
         {
           title: 'फॉलो-अप',
           points: [
-            'नियमित अंतराल पर Hb जाँच',
+            'नियमित अंतराल पर Hb टेस्टिंग कराएँ',
             'रिकॉर्ड के लिए ID/एप्लिकेशन कोड रखें',
           ],
         },
@@ -201,22 +201,22 @@ const CONTENT = {
         {
           title: 'Dietary Advice',
           points: [
-            'Encourage iron-rich complementary foods (dal, ragi, green leafy vegetables, eggs)',
+            'Give iron-rich complementary foods (dal, ragi, green leafy vegetables, eggs)',
             'Give vitamin C-rich foods (oranges, lemons, sour fruits) with meals',
           ],
         },
         {
-          title: 'Deworming',
+          title: 'Deworming Medicine',
           points: [
-            'Give albendazole every 6 months after 1 year of age',
-            'Maintain hygiene and hand washing',
+            'Give albendazole (Albendazole) every 6 months after 1 year of age',
+            'Pay attention to hygiene and hand washing',
           ],
         },
         {
-          title: 'Growth & Health Monitoring',
+          title: 'Development & Health Monitoring',
           points: [
-            'Regular weight/height monitoring',
-            'Watch for signs of weakness, poor appetite and frequent infections',
+            'Get regular weight/height monitoring done',
+            'Pay attention to signs of weakness, poor appetite, and frequent infections',
           ],
         },
       ],
@@ -234,24 +234,24 @@ const CONTENT = {
           ],
         },
         {
-          title: 'આહાર સલાહ',
+          title: 'આહારની સલાહ',
           points: [
-            'આયર્ન સમૃદ્ધ પૂરક ખોરાક (દાળ, રાગી, લીલા પાંદડાવાળા શાકભાજી, ઇંડા) ને પ્રોત્સાહિત કરો',
-            'ભોજન સાથે વિટામિન સી-સમૃદ્ધ ખોરાક (આમળા, લીંબુ, ખાટા ફળો) આપો',
+            'આયર્નથી ભરપૂર પૂરક ખોરાક (દાળ, રાગી, લીલા પાંદડાવાળા શાકભાજી, ઈંડા) આપો',
+            'ભોજન સાથે વિટામિન સીથી ભરપૂર ખોરાક (આમળાં, લીંબુ, ખાટાં ફળો) આપો',
           ],
         },
         {
-          title: 'કૃમિનાશક',
+          title: 'કૃમિનાશક દવા',
           points: [
-            '1 વર્ષની ઉંમર પછી દર 6 મહિને આલ્બેન્ડાઝોલ આપો',
-            'સ્વચ્છતા અને હાથ ધોવાનું જાળવો',
+            '૧ વર્ષની ઉંમર પછી દર ૬ મહિને આલ્બેન્ડાઝોલ (Albendazole) આપો',
+            'સ્વચ્છતા અને હાથ ધોવાનું ધ્યાન રાખો',
           ],
         },
         {
-          title: 'વૃદ્ધિ અને આરોગ્ય દેખરેખ',
+          title: 'વિકાસ અને સ્વાસ્થ્યનું નિરીક્ષણ',
           points: [
-            'વજન/ઊંચાઈનું નિયમિત નિરીક્ષણ',
-            'ફીકાશ, ઓછી ભૂખ અને વારંવાર ચેપના ચિહ્નો પર ધ્યાન આપો',
+            'નિયમિત વજન/ઊંચાઈનું નિરીક્ષણ કરાવો',
+            'ફીકાશ, ઓછી ભૂખ, અને વારંવાર ચેપના લક્ષણો પર ધ્યાન રાખો',
           ],
         },
       ],
@@ -269,24 +269,24 @@ const CONTENT = {
           ],
         },
         {
-          title: 'आहार सलाह',
+          title: 'आहार की सलाह',
           points: [
-            'आयरन युक्त पूरक आहार (दाल, रागी, हरी पत्तेदार सब्जियाँ, अंडे) को प्रोत्साहित करें',
-            'भोजन के साथ विटामिन सी युक्त भोजन (संतरे, नींबू, खट्टे फल) दें',
+            'आयरन से भरपूर पूरक आहार (दाल, रागी, हरी पत्तेदार सब्जियाँ, अंडे) दें',
+            'भोजन के साथ विटामिन सी से भरपूर भोजन (संतरे, नींबू, खट्टे फल) दें',
           ],
         },
         {
-          title: 'कृमिनाशक',
+          title: 'कृमिनाशक दवा',
           points: [
-            '1 साल की उम्र के बाद हर 6 महीने में अल्बेंडाज़ोल दें',
-            'स्वच्छता और हाथ धोना बनाए रखें',
+            '१ साल की उम्र के बाद हर ६ महीने में अल्बेंडाज़ोल (Albendazole) दें',
+            'स्वच्छता और हाथ धोने का ध्यान रखें',
           ],
         },
         {
-          title: 'वृद्धि और स्वास्थ्य निगरानी',
+          title: 'विकास और स्वास्थ्य का निरीक्षण',
           points: [
-            'वजन/ऊँचाई की नियमित निगरानी',
-            'कमज़ोरी, कम भूख और बार-बार संक्रमण के लक्षणों पर ध्यान दें',
+            'नियमित वजन/ऊँचाई का निरीक्षण कराएँ',
+            'कमज़ोरी, कम भूख, और बार-बार संक्रमण के लक्षणों पर ध्यान रखें',
           ],
         },
       ],
@@ -310,25 +310,25 @@ const CONTENT = {
           points: [
             'Eat iron-rich foods (green leafy vegetables, jaggery, peanuts, pulses, ragi, dates, meat, eggs)',
             'Take vitamin C-rich foods with meals',
-            'Avoid tea/coffee near meals',
+            'Avoid tea/coffee near meal times',
           ],
         },
         {
-          title: 'Deworming',
+          title: 'Deworming Medicine',
           points: ['Take albendazole every 6 months', 'Maintain hand hygiene'],
         },
         {
           title: 'Menstrual Health',
           points: [
             'Maintain hygiene during menstruation',
-            'Report excessive bleeding or irregular menstrual cycle',
+            'Report if there is excessive bleeding or irregular menstrual cycle',
           ],
         },
         {
           title: 'Follow-up',
           points: [
-            'Regular Hb testing in school/community',
-            'Report any IFA side effects',
+            'Get regular Hb testing done in school/community',
+            'Report IFA side effects immediately if any occur',
           ],
         },
       ],
@@ -346,29 +346,29 @@ const CONTENT = {
           ],
         },
         {
-          title: 'આહાર સલાહ',
+          title: 'આહારની સલાહ',
           points: [
-            'આયર્ન સમૃદ્ધ ખોરાક ખાઓ (લીલા પાંદડાવાળા શાકભાજી, ગોળ, મગફળી, કઠોળ, રાગી, ખજૂર, માંસ, ઇંડા)',
-            'ભોજન સાથે વિટામિન સી-સમૃદ્ધ ખોરાક લો',
-            'ભોજનની નજીક ચા/કોફી ટાળો',
+            'આયર્નથી ભરપૂર ખોરાક (લીલા પાંદડાવાળા શાકભાજી, ગોળ, મગફળી, કઠોળ, રાગી, ખજૂર, માંસ, ઈંડા) ખાઓ',
+            'ભોજન સાથે વિટામિન સીથી ભરપૂર ખોરાક લો',
+            'ભોજનની નજીકના સમયે ચા/કોફી ટાળો',
           ],
         },
         {
-          title: 'કૃમિનાશક',
-          points: ['દર 6 મહિને આલ્બેન્ડાઝોલ લો', 'હાથની સ્વચ્છતા જાળવો'],
+          title: 'કૃમિનાશક દવા',
+          points: ['દર ૬ મહિને આલ્બેન્ડાઝોલ લો', 'હાથની સ્વચ્છતા જાળવો'],
         },
         {
-          title: 'માસિક સ્રાવ સ્વાસ્થ્ય',
+          title: 'માસિક સ્વાસ્થ્ય',
           points: [
-            'માસિક સ્રાવ દરમિયાન સ્વચ્છતા જાળવો',
-            'વધુ પડતું રક્તસ્રાવ અથવા અનિયમિત માસિક ચક્રની જાણ કરો',
+            'માસિક ધર્મ દરમિયાન સ્વચ્છતા જાળવો',
+            'જો વધુ રક્તસ્રાવ અથવા અનિયમિત માસિક ચક્ર હોય તો જાણ કરો',
           ],
         },
         {
           title: 'ફોલો-અપ',
           points: [
-            'શાળા/સમુદાયમાં નિયમિત Hb પરીક્ષણ',
-            'જો IFA ની કોઈ આડઅસર હોય તો તેની જાણ કરો',
+            'શાળા/સમુદાયમાં નિયમિત Hb ટેસ્ટિંગ કરાવો',
+            'IFAની આડઅસરો હોય તો તરત જ જાણ કરો',
           ],
         },
       ],
@@ -386,32 +386,32 @@ const CONTENT = {
           ],
         },
         {
-          title: 'आहार सलाह',
+          title: 'आहार की सलाह',
           points: [
-            'आयरन युक्त भोजन खाएँ (हरी पत्तेदार सब्जियाँ, गुड़, मूँगफली, दालें, रागी, खजूर, मांस, अंडे)',
-            'भोजन के साथ विटामिन सी युक्त भोजन लें',
-            'भोजन के पास चाय/कॉफी से बचें',
+            'आयरन से भरपूर भोजन (हरी पत्तेदार सब्जियाँ, गुड़, मूँगफली, दालें, रागी, खजूर, मांस, अंडे) खाएँ',
+            'भोजन के साथ विटामिन सी से भरपूर भोजन लें',
+            'भोजन के नज़दीकी समय में चाय/कॉफी से बचें',
           ],
         },
         {
-          title: 'कृमिनाशक',
+          title: 'कृमिनाशक दवा',
           points: [
-            'हर 6 महीने में अल्बेंडाज़ोल लें',
+            'हर ६ महीने में अल्बेंडाज़ोल लें',
             'हाथ की स्वच्छता बनाए रखें',
           ],
         },
         {
-          title: 'मासिक धर्म स्वास्थ्य',
+          title: 'मासिक स्वास्थ्य',
           points: [
             'मासिक धर्म के दौरान स्वच्छता बनाए रखें',
-            'अत्यधिक रक्तस्राव या अनियमित मासिक चक्र की जानकारी दें',
+            'यदि अधिक रक्तस्राव या अनियमित मासिक चक्र हो तो जानकारी दें',
           ],
         },
         {
           title: 'फॉलो-अप',
           points: [
-            'स्कूल/समुदाय में नियमित Hb जाँच',
-            'किसी भी आईएफए साइड इफेक्ट की जानकारी दें',
+            'स्कूल/समुदाय में नियमित Hb टेस्टिंग कराएँ',
+            'आईएफए की साइड इफेक्ट्स हों तो तुरंत जानकारी दें',
           ],
         },
       ],
@@ -453,10 +453,10 @@ const Information = ({navigation}) => {
     }
   };
 
-  const carouselData = useMemo(() => {
+  const keyInfoData = useMemo(() => {
     if (!section || !section.sections || !Array.isArray(section.sections))
       return [];
-    return section.sections.map((sectionItem, index) => ({
+    return section.sections.slice(0, 3).map((sectionItem, index) => ({
       title: sectionItem?.title || 'Information',
       subtitle: section?.subtitle || '',
       points: sectionItem?.points || [],
@@ -635,60 +635,6 @@ const Information = ({navigation}) => {
                 <Text style={styles.subtitle}>{section.subtitle}</Text>
               ) : null}
 
-              {/* Key Information Cards */}
-              {carouselData.length > 0 && (
-                <View style={styles.keyInfoSection}>
-                  <Text style={styles.keyInfoTitle}>Key Information</Text>
-                  <View style={styles.keyInfoGrid}>
-                    {carouselData.slice(0, 3).map((item, index) => (
-                      <View key={index} style={styles.keyInfoCard}>
-                        <View style={styles.keyInfoHeader}>
-                          <View
-                            style={[
-                              styles.keyInfoIcon,
-                              {backgroundColor: getCategoryColor() + '20'},
-                            ]}>
-                            <Icon
-                              name="lightbulb-outline"
-                              size={20}
-                              color={getCategoryColor()}
-                            />
-                          </View>
-                          <Text style={styles.keyInfoCardTitle}>
-                            {item.title}
-                          </Text>
-                        </View>
-                        <View style={styles.keyInfoContent}>
-                          {item.points.slice(0, 2).map((point, pointIndex) => (
-                            <View key={pointIndex} style={styles.keyInfoPoint}>
-                              <Icon
-                                name="check-circle"
-                                size={14}
-                                color={colors.success}
-                              />
-                              <Text style={styles.keyInfoPointText}>
-                                {point}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                        {item.video && (
-                          <TouchableOpacity
-                            onPress={() => Linking.openURL(item.video)}
-                            style={[
-                              styles.keyInfoVideoBtn,
-                              {backgroundColor: getCategoryColor()},
-                            ]}>
-                            <Icon name="play" size={14} color={colors.white} />
-                            <Text style={styles.keyInfoVideoText}>Video</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              )}
-
               {/* Detailed sections */}
               <View style={styles.detailedSection}>
                 <Text style={styles.detailedTitle}>Detailed Information</Text>
@@ -778,14 +724,15 @@ const styles = StyleSheet.create({
   screen: {flex: 1, backgroundColor: colors.background},
 
   topRow: {
-    marginHorizontal: spacing.md,
+    marginHorizontal: spacing.horizontal, // 16px left/right
     marginTop: spacing.md,
     marginBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     ...shadows.sm,
     borderWidth: 1,
@@ -821,7 +768,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.border,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     borderRadius: borderRadius.md,
     minWidth: 40,
     backgroundColor: colors.surface,
@@ -844,8 +791,10 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surface,
-    margin: spacing.xs,
-    padding: spacing.md,
+    marginHorizontal: spacing.horizontal, // 16px left/right
+    marginVertical: spacing.xs,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     ...shadows.md,
     borderWidth: 1,
@@ -869,7 +818,8 @@ const styles = StyleSheet.create({
   categoryCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     width: '30%',
     alignItems: 'center',
     borderWidth: 2,
@@ -884,7 +834,8 @@ const styles = StyleSheet.create({
     borderWidth: 3,
   },
   categoryIconContainer: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
     marginBottom: spacing.sm,
     ...shadows.sm,
@@ -921,7 +872,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.xs,
     paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     backgroundColor: colors.background,
     borderRadius: borderRadius.md,
     borderWidth: 1,
@@ -940,13 +891,15 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary + '30',
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.primary + '05',
   },
   placeholderIcon: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     backgroundColor: colors.primary + '20',
     borderRadius: borderRadius.full,
     borderWidth: 2,
@@ -991,85 +944,150 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
   },
 
-  keyInfoSection: {
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
+  // Carousel Styles
+  carouselSection: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
   },
-  keyInfoTitle: {
+  carouselSectionTitle: {
     ...typography.subtitle,
     color: colors.text,
     fontWeight: typography.weights.bold,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     textAlign: 'center',
   },
-  keyInfoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+  carouselIndicatorsContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
-  keyInfoCard: {
+  carouselIndicators: {
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  indicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.border,
+  },
+  activeIndicator: {
+    width: 20,
+    backgroundColor: colors.primary,
+  },
+  carouselContainer: {
+    position: 'relative',
+  },
+  carouselContentContainer: {
+    paddingHorizontal: spacing.sm,
+  },
+  carouselItem: {
+    paddingHorizontal: spacing.xs,
+  },
+  carouselCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    width: '48%',
-    ...shadows.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
+    ...shadows.sm,
     borderWidth: 2,
     borderColor: colors.borderLight,
-    borderTopWidth: 4,
-    borderTopColor: colors.primary,
+    borderTopWidth: 3,
+    minHeight: 140,
+    marginHorizontal: spacing.xs,
   },
-  keyInfoHeader: {
+  carouselCardActive: {
+    ...shadows.lg,
+    borderWidth: 4,
+    borderColor: colors.primary + '60',
+    backgroundColor: colors.primary + '08',
+    minHeight: 200,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
+    transform: [{scale: 1.05}],
+  },
+  carouselHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  keyInfoIcon: {
+  carouselIcon: {
     padding: spacing.xs,
-    borderRadius: borderRadius.sm,
+    borderRadius: borderRadius.md,
     marginRight: spacing.xs,
+    ...shadows.sm,
   },
-  keyInfoCardTitle: {
-    ...typography.caption,
+  carouselTitle: {
+    ...typography.small,
     color: colors.text,
     fontWeight: typography.weights.semibold,
     flex: 1,
+    lineHeight: 14,
   },
-  keyInfoContent: {
+  carouselTitleActive: {
+    ...typography.body,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+    lineHeight: 18,
+  },
+  carouselContent: {
     marginBottom: spacing.sm,
   },
-  keyInfoPoint: {
+  carouselPoint: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: spacing.xs,
+    paddingVertical: 2,
   },
-  keyInfoPointText: {
+  carouselPointText: {
     marginLeft: spacing.xs,
     color: colors.text,
     flex: 1,
     ...typography.small,
-    lineHeight: 16,
+    lineHeight: 14,
   },
-  keyInfoVideoBtn: {
-    borderRadius: borderRadius.sm,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
+  carouselVideoBtn: {
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.horizontal,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: spacing.xs,
-    ...shadows.sm,
+    gap: spacing.sm,
+    ...shadows.md,
+    marginTop: spacing.md,
   },
-  keyInfoVideoText: {
+  carouselVideoText: {
     color: colors.white,
-    ...typography.small,
+    ...typography.caption,
     fontWeight: typography.weights.semibold,
+  },
+  carouselNavigation: {
+    position: 'absolute',
+    top: '50%',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.xs,
+    transform: [{translateY: -15}],
+  },
+  navButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...shadows.md,
+  },
+  navButtonDisabled: {
+    opacity: 0.3,
   },
 
   sectionCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     marginBottom: spacing.lg,
     borderWidth: 2,
     borderColor: colors.borderLight,
@@ -1083,7 +1101,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionIconContainer: {
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     marginRight: spacing.sm,
   },

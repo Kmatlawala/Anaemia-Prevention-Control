@@ -1,15 +1,28 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, Platform } from 'react-native';
-import { sendSmartSMS, sendSmartBulkSMS, formatPhoneNumber, isValidPhoneNumber } from '../utils/sms';
+import React, {useState} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  Platform,
+} from 'react-native';
+import {
+  sendSmartSMS,
+  sendSmartBulkSMS,
+  formatPhoneNumber,
+  isValidPhoneNumber,
+} from '../utils/sms';
 
 /**
  * SMS Component for sending SMS messages
  * Supports both single and bulk SMS sending
  */
-const SMSComponent = ({ 
-  beneficiaries = [], 
+const SMSComponent = ({
+  beneficiaries = [],
   onSMSComplete = () => {},
-  style = {} 
+  style = {},
 }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [message, setMessage] = useState('');
@@ -33,21 +46,33 @@ const SMSComponent = ({
     setIsLoading(true);
     try {
       const formattedNumber = formatPhoneNumber(phoneNumber);
-      const success = await sendSmartSMS(formattedNumber, message, sendMethod === 'direct');
-      
+      const success = await sendSmartSMS(
+        formattedNumber,
+        message,
+        sendMethod === 'direct',
+      );
+
       if (success) {
-        Alert.alert('Success', 'SMS sent successfully!');
+        console.log('[SMSComponent] SMS sent successfully!');
         setPhoneNumber('');
         setMessage('');
-        onSMSComplete({ type: 'single', phoneNumber: formattedNumber, success: true });
+        onSMSComplete({
+          type: 'single',
+          phoneNumber: formattedNumber,
+          success: true,
+        });
       } else {
-        Alert.alert('Error', 'Failed to send SMS');
-        onSMSComplete({ type: 'single', phoneNumber: formattedNumber, success: false });
+        console.error('[SMSComponent] Failed to send SMS');
+        onSMSComplete({
+          type: 'single',
+          phoneNumber: formattedNumber,
+          success: false,
+        });
       }
     } catch (error) {
       console.error('SMS send error:', error);
-      Alert.alert('Error', 'Failed to send SMS: ' + error.message);
-      onSMSComplete({ type: 'single', phoneNumber: phoneNumber, success: false });
+      console.error('[SMSComponent] Failed to send SMS:', error.message);
+      onSMSComplete({type: 'single', phoneNumber: phoneNumber, success: false});
     } finally {
       setIsLoading(false);
     }
@@ -70,20 +95,34 @@ const SMSComponent = ({
     setIsLoading(true);
     try {
       const success = await sendSmartBulkSMS(
-        beneficiaries.map(b => b.phone).filter(phone => phone && isValidPhoneNumber(phone)),
+        beneficiaries
+          .map(b => b.phone)
+          .filter(phone => phone && isValidPhoneNumber(phone)),
         message,
-        sendMethod === 'direct'
+        sendMethod === 'direct',
       );
-      
+
       if (success) {
-        onSMSComplete({ type: 'bulk', beneficiaries: beneficiaries.length, success: true });
+        onSMSComplete({
+          type: 'bulk',
+          beneficiaries: beneficiaries.length,
+          success: true,
+        });
       } else {
-        onSMSComplete({ type: 'bulk', beneficiaries: beneficiaries.length, success: false });
+        onSMSComplete({
+          type: 'bulk',
+          beneficiaries: beneficiaries.length,
+          success: false,
+        });
       }
     } catch (error) {
       console.error('Bulk SMS send error:', error);
-      Alert.alert('Error', 'Failed to send bulk SMS: ' + error.message);
-      onSMSComplete({ type: 'bulk', beneficiaries: beneficiaries.length, success: false });
+      console.error('[SMSComponent] Failed to send bulk SMS:', error.message);
+      onSMSComplete({
+        type: 'bulk',
+        beneficiaries: beneficiaries.length,
+        success: false,
+      });
     } finally {
       setIsLoading(false);
     }
@@ -92,7 +131,7 @@ const SMSComponent = ({
   return (
     <View style={[styles.container, style]}>
       <Text style={styles.title}>Send SMS</Text>
-      
+
       {/* Send Method Selection */}
       <View style={styles.methodContainer}>
         <Text style={styles.label}>Send Method:</Text>
@@ -100,28 +139,28 @@ const SMSComponent = ({
           <TouchableOpacity
             style={[
               styles.methodButton,
-              sendMethod === 'direct' && styles.methodButtonActive
+              sendMethod === 'direct' && styles.methodButtonActive,
             ]}
-            onPress={() => setSendMethod('direct')}
-          >
-            <Text style={[
-              styles.methodButtonText,
-              sendMethod === 'direct' && styles.methodButtonTextActive
-            ]}>
+            onPress={() => setSendMethod('direct')}>
+            <Text
+              style={[
+                styles.methodButtonText,
+                sendMethod === 'direct' && styles.methodButtonTextActive,
+              ]}>
               Direct SMS
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[
               styles.methodButton,
-              sendMethod === 'app' && styles.methodButtonActive
+              sendMethod === 'app' && styles.methodButtonActive,
             ]}
-            onPress={() => setSendMethod('app')}
-          >
-            <Text style={[
-              styles.methodButtonText,
-              sendMethod === 'app' && styles.methodButtonTextActive
-            ]}>
+            onPress={() => setSendMethod('app')}>
+            <Text
+              style={[
+                styles.methodButtonText,
+                sendMethod === 'app' && styles.methodButtonTextActive,
+              ]}>
               SMS App
             </Text>
           </TouchableOpacity>
@@ -160,8 +199,7 @@ const SMSComponent = ({
         <TouchableOpacity
           style={[styles.button, styles.sendButton]}
           onPress={handleSendSMS}
-          disabled={isLoading}
-        >
+          disabled={isLoading}>
           <Text style={styles.buttonText}>
             {isLoading ? 'Sending...' : 'Send SMS'}
           </Text>
@@ -171,10 +209,11 @@ const SMSComponent = ({
           <TouchableOpacity
             style={[styles.button, styles.bulkButton]}
             onPress={handleSendBulkSMS}
-            disabled={isLoading}
-          >
+            disabled={isLoading}>
             <Text style={styles.buttonText}>
-              {isLoading ? 'Sending...' : `Send to All (${beneficiaries.length})`}
+              {isLoading
+                ? 'Sending...'
+                : `Send to All (${beneficiaries.length})`}
             </Text>
           </TouchableOpacity>
         )}
@@ -182,10 +221,9 @@ const SMSComponent = ({
 
       {/* Info Text */}
       <Text style={styles.infoText}>
-        {sendMethod === 'direct' 
+        {sendMethod === 'direct'
           ? 'Direct SMS: Sends SMS directly without opening SMS app (Android only)'
-          : 'SMS App: Opens device SMS app with pre-filled message'
-        }
+          : 'SMS App: Opens device SMS app with pre-filled message'}
       </Text>
     </View>
   );

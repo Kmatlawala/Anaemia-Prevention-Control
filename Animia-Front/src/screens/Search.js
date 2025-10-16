@@ -24,39 +24,70 @@ import {
 import Header from '../components/Header';
 import dayjs from 'dayjs';
 import Input from '../components/Input';
+import NetworkStatus from '../components/NetworkStatus';
 import {getRole} from '../utils/role';
 import {API} from '../utils/api';
-const Search = ({navigation}) => {
+import {useDispatch, useSelector} from 'react-redux';
+import {
+  fetchBeneficiaries,
+  selectBeneficiaries,
+  selectBeneficiaryLoading,
+  selectBeneficiaryError,
+} from '../store/beneficiarySlice';
+import {debugCacheStatus} from '../utils/asyncCache';
+const Search = ({navigation, hideHeader = false}) => {
+  const dispatch = useDispatch();
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState([]);
   const debounceRef = useRef(null);
   const [isPatient, setIsPatient] = useState(false);
 
+  // Get beneficiaries from Redux store (with offline caching)
+  const beneficiaries = useSelector(selectBeneficiaries);
+  const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
+  const beneficiaryError = useSelector(selectBeneficiaryError);
+
   useEffect(() => {
     (async () => {
       const r = await getRole();
       setIsPatient(String(r || '').toLowerCase() === 'patient');
     })();
-  }, []);
 
-  // Updated doSearch to use backend API
+    // Load beneficiaries from Redux store (with offline caching)
+    dispatch(fetchBeneficiaries());
+  }, [dispatch]);
+
+  // Updated doSearch to use Redux store (with offline caching)
   const doSearch = useCallback(async text => {
     const raw = (text || '').trim();
     if (!raw) {
       setResults([]);
       return;
     }
+
     setLoading(true);
     try {
-      const response = await API.getBeneficiaries(1000);
-      console.log('[Search] API response:', response);
+      // Debug cache status
+      await debugCacheStatus();
 
-      const all = response?.data || response;
-      console.log('[Search] Extracted beneficiaries:', all);
+      // Fetch beneficiaries from Redux store (with offline caching)
+      await dispatch(fetchBeneficiaries());
 
-      if (!Array.isArray(all)) {
-        console.warn('[Search] API returned non-array:', all);
+      // Use beneficiaries from Redux store
+      const all = beneficiaries;
+      if (all[0]) {
+        setResults([
+          {
+            latest_hemoglobin: all[0].latest_hemoglobin,
+            latest_anemia_category: all[0].latest_anemia_category,
+            intervention_id: all[0].intervention_id,
+          },
+        ]);
+      }
+
+      if (!Array.isArray(all) || all.length === 0) {
+        console.warn('[Search] No beneficiaries data available');
         setResults([]);
         return;
       }
@@ -107,13 +138,14 @@ const Search = ({navigation}) => {
   );
 
   // Maintain search results when returning from detail screen
+  // Only re-run search if we're not embedded (hideHeader = false)
   useFocusEffect(
     useCallback(() => {
-      // Re-run search if we have a query but no results
-      if (q.length > 0 && results.length === 0 && !loading) {
+      // Re-run search if we have a query but no results and we're not embedded
+      if (!hideHeader && q.length > 0 && results.length === 0 && !loading) {
         doSearch(q);
       }
-    }, [q, results.length, loading, doSearch]),
+    }, [hideHeader, q, results.length, loading, doSearch]),
   );
 
   const onPressSearch = () => {
@@ -126,6 +158,32 @@ const Search = ({navigation}) => {
       item.short_id ||
       item.id_number ||
       (item.unique_id ? item.unique_id.slice(0, 12) : '');
+
+    // Determine status badge
+    const hasScreening = item.latest_hemoglobin;
+    const hasIntervention = item.intervention_id;
+    let statusBadge = null;
+
+    if (hasIntervention) {
+      statusBadge = {
+        text: 'Completed',
+        color: colors.success || '#4CAF50',
+        icon: 'check-circle',
+      };
+    } else if (hasScreening) {
+      statusBadge = {
+        text: 'Screened',
+        color: colors.warning || '#FF9800',
+        icon: 'clock',
+      };
+    } else {
+      statusBadge = {
+        text: 'Registered',
+        color: colors.primary,
+        icon: 'account',
+      };
+    }
+
     return (
       <TouchableOpacity
         style={styles.card}
@@ -139,43 +197,95 @@ const Search = ({navigation}) => {
         activeOpacity={0.7}>
         <View style={styles.cardHeader}>
           <View style={styles.avatarContainer}>
-            <Icon name="account" size={24} color={colors.primary} />
+            <Icon name="account" size={28} color={colors.primary} />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.name}>{item.name || '-'}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.name}>{item.name || '-'}</Text>
+              <View
+                style={[
+                  styles.statusBadge,
+                  {backgroundColor: statusBadge.color + '20'},
+                ]}>
+                <Icon
+                  name={statusBadge.icon}
+                  size={12}
+                  color={statusBadge.color}
+                />
+                <Text style={[styles.statusText, {color: statusBadge.color}]}>
+                  {statusBadge.text}
+                </Text>
+              </View>
+            </View>
+
             <View style={styles.detailsRow}>
               <Icon
                 name="card-account-details"
-                size={14}
+                size={16}
                 color={colors.textSecondary}
               />
               <Text style={styles.sub}>{displayId}</Text>
             </View>
             <View style={styles.detailsRow}>
-              <Icon name="phone" size={14} color={colors.textSecondary} />
+              <Icon name="phone" size={16} color={colors.textSecondary} />
               <Text style={styles.sub}>{item.phone || '-'}</Text>
             </View>
             {!!item.address && (
               <View style={styles.detailsRow}>
                 <Icon
                   name="map-marker"
-                  size={14}
+                  size={16}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.sub}>{item.address}</Text>
+                <Text style={styles.sub} numberOfLines={1}>
+                  {item.address}
+                </Text>
               </View>
             )}
             <View style={styles.detailsRow}>
-              <Icon name="calendar" size={14} color={colors.textSecondary} />
+              <Icon name="calendar" size={16} color={colors.textSecondary} />
               <Text style={styles.small}>
                 Registered:{' '}
                 {item.registration_date
-                  ? dayjs(item.registration_date).format('YYYY-MM-DD')
+                  ? dayjs(item.registration_date).format('DD MMM YYYY')
                   : '-'}
               </Text>
             </View>
+
+            {/* Display screening data if available */}
+            {item.latest_hemoglobin && (
+              <View style={styles.screeningInfo}>
+                <View style={styles.detailsRow}>
+                  <Icon name="heart-pulse" size={16} color={colors.primary} />
+                  <Text style={styles.screeningText}>
+                    Hb: {item.latest_hemoglobin} g/dL | Anemia:{' '}
+                    {item.latest_anemia_category || 'N/A'}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            {/* Display intervention data if available */}
+            {item.intervention_id && (
+              <View style={styles.interventionInfo}>
+                <View style={styles.detailsRow}>
+                  <Icon
+                    name="medical-bag"
+                    size={16}
+                    color={colors.secondary || '#4CAF50'}
+                  />
+                  <Text style={styles.interventionText}>
+                    IFA: {item.intervention_ifa_yes ? 'Yes' : 'No'} | Calcium:{' '}
+                    {item.intervention_calcium_yes ? 'Yes' : 'No'} | Deworm:{' '}
+                    {item.intervention_deworm_yes ? 'Yes' : 'No'}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
-          <Icon name="chevron-right" size={20} color={colors.textSecondary} />
+          <View style={styles.chevronContainer}>
+            <Icon name="chevron-right" size={24} color={colors.textSecondary} />
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -183,25 +293,16 @@ const Search = ({navigation}) => {
 
   return (
     <View style={styles.screen}>
-      <Header title="Search Beneficiary" variant="back" />
+      <NetworkStatus />
+      {!hideHeader && <Header title="Search Beneficiary" variant="back" />}
 
-      {/* Search Header */}
-      <View style={styles.searchHeader}>
-        <View style={styles.searchIconContainer}>
-          <Icon name="magnify" size={24} color={colors.primary} />
-        </View>
-        <Text style={styles.searchTitle}>Find Beneficiaries</Text>
-        <Text style={styles.searchSubtitle}>
-          Search by Aadhaar, Phone, or Name
-        </Text>
-      </View>
-
-      <View style={styles.cardContainer}>
+      {/* Enhanced Search Section */}
+      <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
           <View style={styles.inputContainer}>
             <Icon
               name="magnify"
-              size={20}
+              size={22}
               color={colors.primary}
               style={styles.inputIcon}
             />
@@ -219,56 +320,90 @@ const Search = ({navigation}) => {
             style={styles.searchBtn}
             onPress={onPressSearch}
             activeOpacity={0.8}>
-            <Icon name="magnify" size={20} color="#fff" />
+            <Icon name="magnify" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
 
+        {/* Search Tips */}
+        {q.length === 0 && (
+          <View style={styles.searchTips}>
+            <Text style={styles.searchTipsTitle}>Search Tips:</Text>
+            <View style={styles.tipsList}>
+              <View style={styles.tipItem}>
+                <Icon name="numeric" size={16} color={colors.primary} />
+                <Text style={styles.tipText}>
+                  Enter Aadhaar number or Short ID
+                </Text>
+              </View>
+              <View style={styles.tipItem}>
+                <Icon name="account" size={16} color={colors.primary} />
+                <Text style={styles.tipText}>Search by beneficiary name</Text>
+              </View>
+              <View style={styles.tipItem}>
+                <Icon name="phone" size={16} color={colors.primary} />
+                <Text style={styles.tipText}>Use phone number to find</Text>
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Results Section */}
+      <View style={styles.resultsSection}>
         {loading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.loadingText}>Searching...</Text>
+            <Text style={styles.loadingText}>Searching beneficiaries...</Text>
           </View>
         ) : (
           <>
             {results.length === 0 && q.length > 0 ? (
               <View style={styles.emptyContainer}>
-                <Icon
-                  name="account-search"
-                  size={48}
-                  color={colors.textSecondary}
-                />
+                <View style={styles.emptyIconContainer}>
+                  <Icon
+                    name="account-search"
+                    size={64}
+                    color={colors.textSecondary}
+                  />
+                </View>
                 <Text style={styles.emptyTitle}>No Results Found</Text>
                 <Text style={styles.emptySubtitle}>
-                  Try searching with different keywords
+                  Try searching with different keywords or check spelling
                 </Text>
-              </View>
-            ) : results.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <Icon name="magnify" size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyTitle}>Start Searching</Text>
-                <Text style={styles.emptySubtitle}>
-                  Enter a name, ID, or phone number to find beneficiaries
-                </Text>
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={() => setQ('')}
+                  activeOpacity={0.7}>
+                  <Text style={styles.retryButtonText}>Clear Search</Text>
+                </TouchableOpacity>
               </View>
             ) : (
-              <View style={styles.resultsHeader}>
-                <Text style={styles.resultsCount}>
-                  {results.length} result{results.length !== 1 ? 's' : ''} found
-                </Text>
-              </View>
-            )}
+              <>
+                <View style={styles.resultsHeader}>
+                  <View style={styles.resultsHeaderContent}>
+                    <Icon
+                      name="check-circle"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.resultsCount}>
+                      {results.length} result{results.length !== 1 ? 's' : ''}{' '}
+                      found
+                    </Text>
+                  </View>
+                </View>
 
-            {results.length > 0 && (
-              <FlatList
-                data={results}
-                keyExtractor={it =>
-                  String(it.id || it.unique_id || Math.random())
-                }
-                renderItem={renderItem}
-                contentContainerStyle={styles.listContainer}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-              />
+                <FlatList
+                  data={results}
+                  keyExtractor={it =>
+                    String(it.id || it.unique_id || Math.random())
+                  }
+                  renderItem={renderItem}
+                  contentContainerStyle={styles.listContainer}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={false}
+                />
+              </>
             )}
           </>
         )}
@@ -283,58 +418,32 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Search Header
-  searchHeader: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-  searchIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  searchTitle: {
-    ...typography.subtitle,
-    color: colors.text,
-    fontWeight: typography.weights.semibold,
-    marginBottom: spacing.xs,
-  },
-  searchSubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-
-  // Card Container
-  cardContainer: {
+  // Search Section
+  searchSection: {
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    margin: spacing.md,
-    ...shadows.md,
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
   },
 
   // Search Container
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   inputContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.background,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.lg,
     paddingHorizontal: spacing.md,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: colors.borderLight,
     marginRight: spacing.sm,
+    ...shadows.sm,
   },
   inputIcon: {
     marginRight: spacing.sm,
@@ -344,54 +453,123 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     backgroundColor: 'transparent',
     color: colors.text,
+    fontSize: 16,
+    paddingVertical: spacing.sm,
   },
   searchBtn: {
     backgroundColor: colors.primary,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
+    ...shadows.md,
+    minWidth: 56,
+  },
+
+  // Search Tips
+  searchTips: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  searchTipsTitle: {
+    ...typography.subtitle,
+    color: colors.text,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.sm,
+  },
+  tipsList: {
+    gap: spacing.sm,
+  },
+  tipItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  tipText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+    flex: 1,
+  },
+
+  // Results Section
+  resultsSection: {
+    flex: 1,
+    paddingHorizontal: spacing.horizontal,
   },
 
   // Loading
   loadingContainer: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.xl * 2,
   },
   loadingText: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
     color: colors.textSecondary,
     ...typography.body,
+    fontWeight: typography.weights.medium,
   },
 
   // Empty States
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: spacing.xl,
+    paddingVertical: spacing.xl * 2,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    ...shadows.sm,
   },
   emptyTitle: {
     ...typography.subtitle,
     color: colors.text,
     fontWeight: typography.weights.semibold,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   emptySubtitle: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    lineHeight: 20,
+    lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+    ...shadows.sm,
+  },
+  retryButtonText: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: typography.weights.semibold,
   },
 
   // Results
   resultsHeader: {
     marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  resultsHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   resultsCount: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    fontWeight: typography.weights.medium,
+    ...typography.body,
+    color: colors.text,
+    fontWeight: typography.weights.semibold,
+    marginLeft: spacing.sm,
   },
   listContainer: {
     paddingBottom: spacing.xl,
@@ -400,34 +578,61 @@ const styles = StyleSheet.create({
   // Card Styles
   card: {
     backgroundColor: colors.surface,
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.borderLight,
-    ...shadows.sm,
+    ...shadows.md,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.primary + '20',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary + '15',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.primary + '30',
   },
   cardContent: {
     flex: 1,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
   },
   name: {
     ...typography.subtitle,
     fontWeight: typography.weights.semibold,
     color: colors.text,
-    marginBottom: spacing.xs,
+    flex: 1,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    marginLeft: spacing.sm,
+  },
+  statusText: {
+    ...typography.caption,
+    fontWeight: typography.weights.semibold,
+    marginLeft: spacing.xs,
+  },
+  chevronContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: spacing.sm,
   },
   detailsRow: {
     flexDirection: 'row',
@@ -437,13 +642,45 @@ const styles = StyleSheet.create({
   sub: {
     ...typography.body,
     color: colors.textSecondary,
-    marginLeft: spacing.xs,
+    marginLeft: spacing.sm,
     flex: 1,
   },
   small: {
     ...typography.caption,
     color: colors.textSecondary,
-    marginLeft: spacing.xs,
+    marginLeft: spacing.sm,
+  },
+
+  // Screening and Intervention Info Styles
+  screeningInfo: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.primary + '05',
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  screeningText: {
+    ...typography.caption,
+    color: colors.primary,
+    marginLeft: spacing.sm,
+    fontWeight: typography.weights.semibold,
+  },
+  interventionInfo: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    backgroundColor: (colors.secondary || '#4CAF50') + '05',
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  interventionText: {
+    ...typography.caption,
+    color: colors.secondary || '#4CAF50',
+    marginLeft: spacing.sm,
+    fontWeight: typography.weights.semibold,
   },
 });
 

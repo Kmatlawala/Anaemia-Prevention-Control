@@ -13,6 +13,8 @@ import {
 
 // Get native SMS module
 const {SMSModule} = NativeModules;
+console.log('[Fixed SMS] SMSModule available:', !!SMSModule);
+console.log('[Fixed SMS] NativeModules:', Object.keys(NativeModules));
 
 /**
  * Request SMS permission for Android
@@ -29,7 +31,7 @@ export async function requestSMSPermission() {
       {
         title: 'SMS Permission',
         message:
-          'Animia needs SMS permission to send healthcare notifications to beneficiaries.',
+          'Anaemia needs SMS permission to send healthcare notifications to beneficiaries.',
         buttonNeutral: 'Ask Me Later',
         buttonNegative: 'Cancel',
         buttonPositive: 'OK',
@@ -95,9 +97,19 @@ export function formatPhoneNumber(phoneNumber) {
  * @returns {boolean} - Is valid phone number
  */
 export function isValidPhoneNumber(phoneNumber) {
-  if (!phoneNumber) return false;
+  if (!phoneNumber) {
+    console.log('[Phone Validation] No phone number provided');
+    return false;
+  }
   const cleaned = phoneNumber.replace(/\D/g, '');
-  return cleaned.length >= 10 && cleaned.length <= 15;
+  const isValid = cleaned.length >= 10 && cleaned.length <= 15;
+  console.log('[Phone Validation]', {
+    original: phoneNumber,
+    cleaned,
+    length: cleaned.length,
+    isValid,
+  });
+  return isValid;
 }
 
 /**
@@ -311,8 +323,14 @@ export async function sendSMS(phoneNumber, message) {
  */
 export async function sendSMSToBeneficiary(beneficiary, message) {
   try {
+    console.log(
+      '[Fixed Beneficiary SMS] Starting SMS process for:',
+      beneficiary.name,
+    );
+    console.log('[Fixed Beneficiary SMS] SMSModule available:', !!SMSModule);
+
     if (!beneficiary) {
-      Alert.alert('Error', 'No beneficiary data provided');
+      console.error('[Fixed Beneficiary SMS] No beneficiary data provided');
       return {success: false, results: []};
     }
 
@@ -320,6 +338,27 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
     const phoneNumbers = [];
 
     // Get all valid phone numbers from beneficiary
+    console.log('[Fixed Beneficiary SMS] Checking phone numbers:');
+    console.log(
+      '[Fixed Beneficiary SMS] Primary phone:',
+      beneficiary.phone,
+      'Valid:',
+      beneficiary.phone ? isValidPhoneNumber(beneficiary.phone) : false,
+    );
+    console.log(
+      '[Fixed Beneficiary SMS] Alt phone:',
+      beneficiary.alt_phone,
+      'Valid:',
+      beneficiary.alt_phone ? isValidPhoneNumber(beneficiary.alt_phone) : false,
+    );
+    console.log(
+      '[Fixed Beneficiary SMS] Doctor phone:',
+      beneficiary.doctor_phone,
+      'Valid:',
+      beneficiary.doctor_phone
+        ? isValidPhoneNumber(beneficiary.doctor_phone)
+        : false,
+    );
 
     if (beneficiary.phone && isValidPhoneNumber(beneficiary.phone)) {
       contacts.push({
@@ -348,11 +387,11 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
       phoneNumbers.push(beneficiary.doctor_phone);
     }
 
+    console.log('[Fixed Beneficiary SMS] Found contacts:', contacts);
+    console.log('[Fixed Beneficiary SMS] Phone numbers:', phoneNumbers);
+
     if (contacts.length === 0) {
-      Alert.alert(
-        'No Contacts',
-        'No valid phone numbers found for this beneficiary',
-      );
+      console.log('[Fixed Beneficiary SMS] No valid contacts found');
       return {success: false, results: []};
     }
 
@@ -372,15 +411,6 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
 
       if (multiSuccess) {
         console.log('[Fixed Beneficiary SMS] Multiple SMS successful');
-
-        // Show success message
-        Alert.alert(
-          'SMS Sent',
-          `SMS sent to all ${contacts.length} contacts for ${beneficiary.name}:\n\n` +
-            contacts.map(c => `• ${c.type}: ${c.number}`).join('\n') +
-            '\n\nPlease check your SMS app to send the message.',
-          [{text: 'OK'}],
-        );
 
         return {
           success: true,
@@ -438,15 +468,13 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
     const successCount = results.filter(r => r.success).length;
     const totalCount = results.length;
 
-    // Show results
+    // Log results instead of showing alert
     const method = SMSModule ? 'Native SMS' : 'SMS App';
-    Alert.alert(
-      'SMS Results',
-      `${method} sent to ${successCount}/${totalCount} contacts:\n\n` +
-        results
-          .map(r => `${r.contact.type}: ${r.success ? '✓' : '✗'}`)
-          .join('\n'),
-      [{text: 'OK'}],
+    console.log(
+      `[Fixed Beneficiary SMS] ${method} sent to ${successCount}/${totalCount} contacts:`,
+      results
+        .map(r => `${r.contact.type}: ${r.success ? '✓' : '✗'}`)
+        .join(', '),
     );
 
     return {
@@ -460,7 +488,6 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
     };
   } catch (error) {
     console.error('[Fixed Beneficiary SMS] Error:', error);
-    Alert.alert('Error', 'Failed to send SMS: ' + error.message);
     return {success: false, results: []};
   }
 }

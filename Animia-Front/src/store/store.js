@@ -1,5 +1,5 @@
-import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './authSlice';
+import {configureStore} from '@reduxjs/toolkit';
+import authSlice from './authSlice';
 import reportReducer from './reportSlice';
 import beneficiaryReducer from './beneficiarySlice';
 import appReducer from './appSlice';
@@ -7,11 +7,11 @@ import appReducer from './appSlice';
 const store = configureStore({
   reducer: {
     app: appReducer,
-    auth: authReducer,
+    auth: authSlice,
     report: reportReducer,
     beneficiary: beneficiaryReducer,
   },
-  middleware: (getDefaultMiddleware) =>
+  middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {
         ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE'],

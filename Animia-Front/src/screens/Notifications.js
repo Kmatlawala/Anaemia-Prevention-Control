@@ -29,8 +29,6 @@ export default function Notifications() {
   const load = async () => {
     setLoading(true);
     try {
-      // We used FCM token as device_id during registration
-      // Retrieve last known token from backend is not stored locally, so list without filter for now
       const list = await API.listNotifications();
       setItems(Array.isArray(list) ? list : []);
     } catch (e) {
@@ -46,13 +44,9 @@ export default function Notifications() {
 
   const onOpen = useCallback(
     async item => {
-      console.log('[Notifications] Opening notification:', item);
-
-      // Parse notification data
       let dataObj = {};
       try {
         dataObj = item.data ? JSON.parse(item.data) : {};
-        console.log('[Notifications] Parsed notification data:', dataObj);
       } catch (parseError) {
         console.error(
           '[Notifications] Failed to parse notification data:',
@@ -66,49 +60,19 @@ export default function Notifications() {
       const storedBeneficiary = dataObj?.beneficiary;
       const shortId = dataObj?.shortId;
 
-      console.log('[Notifications] Notification details:', {
-        benId,
-        shortId,
-        hasStoredBeneficiary: !!storedBeneficiary,
-        notificationType: dataObj?.type,
-      });
-
       if (benId) {
         try {
-          // Use stored beneficiary data if available, otherwise fetch fresh data
           let beneficiaryData;
           if (storedBeneficiary) {
-            // Use the data that was stored at the time of notification
             beneficiaryData = storedBeneficiary;
-            console.log(
-              '[Notifications] Using stored beneficiary data for notification:',
-              benId,
-              beneficiaryData,
-            );
           } else {
-            // Fallback to fetching fresh data for older notifications
-            console.log(
-              '[Notifications] Fetching fresh beneficiary data for ID:',
-              benId,
-            );
             beneficiaryData = await API.getBeneficiary(benId);
-            console.log(
-              '[Notifications] Fetched fresh beneficiary data for notification:',
-              benId,
-              beneficiaryData,
-            );
           }
 
           if (!beneficiaryData) {
             Alert.alert('Error', 'Beneficiary data not found');
             return;
           }
-
-          console.log('[Notifications] Navigating to BeneficiaryDetail with:', {
-            record: beneficiaryData,
-            unique_id: beneficiaryData.unique_id || beneficiaryData.short_id,
-            readOnly: false,
-          });
 
           navigation.navigate('BeneficiaryDetail', {
             record: beneficiaryData,
@@ -124,22 +88,11 @@ export default function Notifications() {
           );
         }
       } else if (shortId) {
-        // Try to fetch by short_id if no benId
         try {
-          console.log(
-            '[Notifications] Fetching beneficiary by short_id:',
-            shortId,
-          );
-
-          // Try the unique route first, fallback to search if it fails
           let beneficiaryData;
           try {
             beneficiaryData = await API.getBeneficiaryByUniqueId(shortId);
           } catch (uniqueError) {
-            console.log(
-              '[Notifications] Unique route failed, trying search...',
-            );
-            // Fallback: search through all beneficiaries to find by short_id
             const allBeneficiaries = await API.getBeneficiaries();
             beneficiaryData = allBeneficiaries.find(
               b => b.short_id === shortId,
@@ -148,11 +101,6 @@ export default function Notifications() {
               throw new Error(`Beneficiary with ID ${shortId} not found`);
             }
           }
-
-          console.log(
-            '[Notifications] Fetched beneficiary by short_id:',
-            beneficiaryData,
-          );
 
           navigation.navigate('BeneficiaryDetail', {
             record: beneficiaryData,
@@ -168,7 +116,6 @@ export default function Notifications() {
           );
         }
       } else {
-        // Show notification details in alert as fallback
         Alert.alert(
           'Notification Details',
           `Title: ${item.title || 'No title'}\nBody: ${
@@ -300,14 +247,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   listContainer: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.md,
   },
 
-  // Card Styles
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.md,
     marginBottom: spacing.sm,
     ...shadows.sm,
   },

@@ -138,6 +138,12 @@ const authSlice = createSlice({
           state.user = action.payload.user;
           state.role = action.payload.role;
           state.token = action.payload.token;
+        } else {
+          // No stored auth state - user is not authenticated
+          state.isAuthenticated = false;
+          state.user = null;
+          state.role = null;
+          state.token = null;
         }
         state.isLoading = false;
       })

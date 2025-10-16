@@ -25,18 +25,21 @@ import {
   shadows,
 } from '../theme/theme';
 import Input from '../components/Input';
-import Select from '../components/Select';
 import {API} from '../utils/api';
 import {getRole} from '../utils/role';
 import SendSMS from '../components/SendSMS';
 import CleanSMSComponent from '../components/CleanSMSComponent';
+import NetworkStatus from '../components/NetworkStatus';
 import {useFocusEffect} from '@react-navigation/native';
 import {
   setCurrentBeneficiary,
+  updateBeneficiary,
+  fetchBeneficiaries,
   updateIntervention,
   setLoading,
   setError,
   selectCurrentBeneficiary,
+  selectBeneficiaries,
   selectBeneficiaryLoading,
   selectBeneficiaryError,
 } from '../store/beneficiarySlice';
@@ -45,13 +48,9 @@ const BeneficiaryDetail = ({route, navigation}) => {
   const dispatch = useDispatch();
   const {unique_id, record, readOnly} = route.params || {};
   const uid = unique_id || (record && record.unique_id);
-
-  console.log('BeneficiaryDetail params:', {unique_id, record, readOnly, uid});
-
   const currentBeneficiary = useSelector(selectCurrentBeneficiary);
   const loading = useSelector(selectBeneficiaryLoading);
   const error = useSelector(selectBeneficiaryError);
-
   const [saving, setSaving] = useState(false);
   const [imgModal, setImgModal] = useState({visible: false, uri: null});
   const [smsModal, setSmsModal] = useState({
@@ -60,34 +59,47 @@ const BeneficiaryDetail = ({route, navigation}) => {
     message: '',
   });
   const [isPatient, setIsPatient] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const isScannerOpenRef = useRef(false);
-
   const data = currentBeneficiary;
-  const original = record;
-
   useEffect(() => {
     if (record) {
-      console.log('Using record data:', record);
       dispatch(setCurrentBeneficiary(record));
-    } else if (!data && uid) {
-      console.log('Loading data for uid:', uid);
+    } else if (!data && uid && !hasCompleteData) {
       load();
     }
-  }, [uid, record]);
+  }, [uid, record, hasCompleteData]);
+
+  // Check if record already has screening/intervention data
+  const hasCompleteData = useMemo(() => {
+    const hasData =
+      record &&
+      (Boolean(record.latest_hemoglobin) || Boolean(record.intervention_id));
+    return hasData;
+  }, [record]);
 
   useEffect(() => {
-    if (record && !original) setOriginal(record);
-  }, [record, original]);
-  useEffect(() => {
-    (async () => {
+    const checkRole = async () => {
       try {
         const r = await getRole();
-        setIsPatient(String(r || '').toLowerCase() === 'patient');
-      } catch (_) {}
-    })();
+        const role = r ? String(r).toLowerCase() : '';
+        setIsPatient(role === 'patient');
+        setIsAdmin(role === 'admin');
+      } catch (error) {
+        console.warn('Error getting role:', error);
+        setIsPatient(false);
+        setIsAdmin(false);
+      }
+    };
+
+    checkRole();
   }, []);
 
-  console.log('Data :: :: ', data);
+  const shouldShowReadOnly = Boolean(
+    readOnly ||
+      isPatient ||
+      (data && (data.latest_hemoglobin || data.intervention_id) && !isAdmin),
+  );
   useFocusEffect(
     React.useCallback(() => {
       const onBack = () => {
@@ -100,12 +112,35 @@ const BeneficiaryDetail = ({route, navigation}) => {
   );
 
   const load = async () => {
-    console.log('Loading beneficiary with uid:', uid);
     dispatch(setLoading(true));
     try {
-      const row = await API.getBeneficiaryByUniqueId(uid);
-      console.log('Loaded beneficiary:', row);
-      dispatch(setCurrentBeneficiary(row));
+      // If record already has complete data, don't make API call
+      if (hasCompleteData) {
+        dispatch(setLoading(false));
+        return;
+      }
+
+      // Use Redux thunk to fetch beneficiaries (with offline support)
+      const fetchResult = await dispatch(fetchBeneficiaries());
+
+      if (fetchResult.type.endsWith('/fulfilled')) {
+        // Get beneficiaries from Redux store
+        const beneficiaries = fetchResult.payload || [];
+        const beneficiary = beneficiaries.find(
+          b => b.short_id === uid || b.unique_id === uid,
+        );
+
+        if (beneficiary) {
+          dispatch(setCurrentBeneficiary(beneficiary));
+        } else {
+          dispatch(setError('Beneficiary not found.'));
+          Alert.alert('Error', 'Beneficiary not found.');
+        }
+      } else {
+        console.warn('Failed to fetch beneficiaries:', fetchResult.payload);
+        dispatch(setError('Unable to load beneficiary.'));
+        Alert.alert('Error', 'Unable to load beneficiary.');
+      }
     } catch (e) {
       console.warn('load err', e);
       dispatch(setError('Unable to load beneficiary.'));
@@ -120,7 +155,6 @@ const BeneficiaryDetail = ({route, navigation}) => {
   };
 
   const onSave = async () => {
-    console.log('readOnly :: :: ', readOnly);
     if (readOnly) return;
     if (!data?.id) {
       Alert.alert('Error', 'Missing record id');
@@ -150,10 +184,20 @@ const BeneficiaryDetail = ({route, navigation}) => {
         calcium_qty: data.calcium_qty ?? null,
         short_id: data.short_id || null,
       };
-      const updated = await API.updateBeneficiary(data.id, payload);
-      dispatch(setCurrentBeneficiary(updated));
 
-      // Send notification after successful update
+      // Use Redux thunk for offline support
+      const updateResult = await dispatch(
+        updateBeneficiary({id: data.id, updates: payload}),
+      );
+
+      // Check if update was successful
+      if (updateResult.type.endsWith('/rejected')) {
+        console.error(
+          '[BeneficiaryDetail] Update operation rejected:',
+          updateResult.payload,
+        );
+        throw new Error(updateResult.payload || 'Update operation failed');
+      }
       try {
         const {sendPushToSelf} = await import('../utils/notifications');
         await sendPushToSelf(
@@ -161,20 +205,10 @@ const BeneficiaryDetail = ({route, navigation}) => {
           `Beneficiary ${data.name} has been updated successfully.`,
           {type: 'beneficiary_updated', id: String(data.id)},
         );
-        console.log('Notification sent for beneficiary update');
-
-        // Send SMS to all beneficiary contacts
         try {
           const {sendSMSToBeneficiary} = await import('../utils/fixedSMS');
-          const message = `Hello ${data.name}, your profile has been updated in Animia. Please contact us if you have any questions.`;
-          console.log('[BeneficiaryDetail] SMS message:', message);
-
-          // Send SMS to all contacts (primary, alternative, doctor)
+          const message = `Hello ${data.name}, your profile has been updated in Anaemia. Please contact us if you have any questions.`;
           const smsResult = await sendSMSToBeneficiary(data, message);
-          console.log(
-            '[BeneficiaryDetail] Multi-contact SMS result:',
-            smsResult,
-          );
         } catch (smsError) {
           console.warn(
             '[BeneficiaryDetail] Failed to send multi-contact SMS:',
@@ -196,7 +230,7 @@ const BeneficiaryDetail = ({route, navigation}) => {
   };
 
   const isDirty = useMemo(() => {
-    if (!data || !original) return false;
+    if (!data || !record) return false;
     const keys = [
       'name',
       'age',
@@ -219,11 +253,11 @@ const BeneficiaryDetail = ({route, navigation}) => {
     ];
     for (const k of keys) {
       const a = data[k] ?? null;
-      const b = original[k] ?? null;
+      const b = record[k] ?? null;
       if (String(a ?? '') !== String(b ?? '')) return true;
     }
     return false;
-  }, [data, original]);
+  }, [data, record]);
 
   const openImage = uri => setImgModal({visible: true, uri});
 
@@ -252,6 +286,7 @@ const BeneficiaryDetail = ({route, navigation}) => {
 
   return (
     <View style={{flex: 1, backgroundColor: colors.background}}>
+      <NetworkStatus />
       <Header
         title="Beneficiary Details"
         onBackPress={() => navigation.goBack()}
@@ -264,219 +299,476 @@ const BeneficiaryDetail = ({route, navigation}) => {
           <Icon name="account-circle" size={48} color={colors.primary} />
         </View>
         <View style={styles.profileInfo}>
-          <Text style={styles.profileName}>{data.name}</Text>
+          {data.name && <Text style={styles.profileName}>{data.name}</Text>}
           <Text style={styles.profileId}>
             {data.short_id ||
               data.id_number ||
               data.id_masked ||
-              data.unique_id}
+              data.unique_id ||
+              'No ID'}
           </Text>
-          <Text style={styles.profileCategory}>
-            {data.category || 'No category'}
-          </Text>
+          {data.category && (
+            <Text style={styles.profileCategory}>
+              {data.category === 'Pregnant'
+                ? 'PREGNANT'
+                : data.category === 'Under5'
+                ? 'CHILD (BELOW 5)'
+                : data.category === 'Adolescent'
+                ? 'ADOLESCENT (10-19)'
+                : data.category === 'WoRA'
+                ? 'WOMEN OF REPRODUCTIVE AGE'
+                : String(data.category).toUpperCase()}
+            </Text>
+          )}
         </View>
       </View>
 
       <ScrollView contentContainerStyle={{padding: spacing.md}}>
         <View style={styles.card}>
-          {readOnly || isPatient ? (
-            <View style={styles.readOnlyContainer}>
-              <View style={styles.infoSection}>
-                <View style={styles.infoItem}>
-                  <Icon name="calendar" size={20} color={colors.primary} />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Registration Date</Text>
+          {/* Always show basic info and screening/intervention data */}
+          <View style={styles.infoSection}>
+            {/* Basic Information - editable for admin, read-only for others */}
+            <View style={styles.infoItem}>
+              <Icon name="calendar" size={20} color={colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Registration Date</Text>
+                {shouldShowReadOnly ? (
+                  data.registration_date && (
                     <Text style={styles.infoValue}>
-                      {data.registration_date
-                        ? dayjs(data.registration_date).format('YYYY-MM-DD')
-                        : '-'}
+                      {dayjs(data.registration_date).format('DD-MM-YYYY')}
                     </Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoItem}>
-                  <Icon name="account" size={20} color={colors.primary} />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Age</Text>
-                    <Text style={styles.infoValue}>
-                      {data.age != null ? String(data.age) : '-'}
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoItem}>
-                  <Icon name="phone" size={20} color={colors.primary} />
-                  <View style={styles.infoContent}>
-                    <Text style={styles.infoLabel}>Phone</Text>
-                    <Text style={styles.infoValue}>{data.phone || '-'}</Text>
-                  </View>
-                </View>
-
-                {!!data.address && (
-                  <View style={styles.infoItem}>
-                    <Icon name="map-marker" size={20} color={colors.primary} />
-                    <View style={styles.infoContent}>
-                      <Text style={styles.infoLabel}>Address</Text>
-                      <Text style={styles.infoValue}>{data.address}</Text>
-                    </View>
-                  </View>
+                  )
+                ) : (
+                  <Input
+                    placeholder="DD-MM-YYYY"
+                    value={
+                      data.registration_date
+                        ? dayjs(data.registration_date).format('DD-MM-YYYY')
+                        : ''
+                    }
+                    onChangeText={v => onChange('registration_date', v)}
+                    style={styles.inlineInput}
+                  />
                 )}
               </View>
             </View>
-          ) : (
-            <View style={styles.editableContainer}>
-              <View style={styles.sectionHeader}>
-                <Icon name="account-edit" size={20} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Personal Information</Text>
-              </View>
 
-              <View style={styles.formRow}>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>Name</Text>
-                  <Input
-                    placeholder="Name"
-                    value={data.name || ''}
-                    onChangeText={v => onChange('name', v)}
-                    style={styles.input}
-                  />
-                </View>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>Age</Text>
+            <View style={styles.infoItem}>
+              <Icon name="account" size={20} color={colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Age</Text>
+                {shouldShowReadOnly ? (
+                  data.age != null && (
+                    <Text style={styles.infoValue}>{String(data.age)}</Text>
+                  )
+                ) : (
                   <Input
                     placeholder="Age"
                     keyboardType="number-pad"
                     value={data.age != null ? String(data.age) : ''}
                     onChangeText={v => onChange('age', v.replace(/\D/g, ''))}
-                    style={styles.input}
+                    style={styles.inlineInput}
                   />
-                </View>
+                )}
               </View>
+            </View>
 
-              <View style={styles.formField}>
-                <Text style={styles.label}>Category</Text>
-                <Select
-                  label="Category"
-                  value={data.category || ''}
-                  onChange={v => onChange('category', v)}
-                  options={[
-                    {label: 'Pregnant', value: 'Pregnant'},
-                    {label: 'Child (Below 5)', value: 'Under5'},
-                    {label: 'Adolescent (10–19)', value: 'Adolescent'},
-                    {label: 'Women of Reproductive Age', value: 'WoRA'},
-                  ]}
-                />
-              </View>
-
-              <View style={styles.sectionHeader}>
-                <Icon name="phone" size={20} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Contact Information</Text>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>Phone</Text>
+            <View style={styles.infoItem}>
+              <Icon name="phone" size={20} color={colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Phone</Text>
+                {shouldShowReadOnly ? (
+                  data.phone && (
+                    <Text style={styles.infoValue}>{data.phone}</Text>
+                  )
+                ) : (
                   <Input
                     placeholder="Phone"
                     keyboardType="phone-pad"
                     value={data.phone || ''}
                     onChangeText={v => onChange('phone', v)}
-                    style={styles.input}
+                    style={styles.inlineInput}
                   />
-                </View>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>Alternate Phone</Text>
-                  <Input
-                    placeholder="Alternate Phone"
-                    keyboardType="phone-pad"
-                    value={data.alt_phone || ''}
-                    onChangeText={v => onChange('alt_phone', v)}
-                    style={styles.input}
-                  />
-                </View>
+                )}
               </View>
+            </View>
 
-              <View style={styles.sectionHeader}>
-                <Icon name="medical-bag" size={20} color={colors.primary} />
-                <Text style={styles.sectionTitle}>Medical Information</Text>
-              </View>
-
-              <View style={styles.formRow}>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>Doctor Name</Text>
+            <View style={styles.infoItem}>
+              <Icon name="map-marker" size={20} color={colors.primary} />
+              <View style={styles.infoContent}>
+                <Text style={styles.infoLabel}>Address</Text>
+                {shouldShowReadOnly ? (
+                  data.address && (
+                    <Text style={styles.infoValue}>{data.address}</Text>
+                  )
+                ) : (
                   <Input
-                    placeholder="Doctor Name"
-                    value={data.doctor_name || ''}
-                    onChangeText={v => onChange('doctor_name', v)}
-                    style={styles.input}
+                    placeholder="Address"
+                    value={data.address || ''}
+                    onChangeText={v => onChange('address', v)}
+                    style={styles.inlineInput}
+                    multiline
                   />
-                </View>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>Doctor Phone</Text>
-                  <Input
-                    placeholder="Doctor Phone"
-                    keyboardType="phone-pad"
-                    value={data.doctor_phone || ''}
-                    onChangeText={v => onChange('doctor_phone', v)}
-                    style={styles.input}
-                  />
-                </View>
+                )}
               </View>
-
-              <View style={styles.formRow}>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>HB (g/dL)</Text>
-                  <Input
-                    placeholder="HB"
-                    keyboardType="decimal-pad"
-                    value={data.hb != null ? String(data.hb) : ''}
-                    onChangeText={v => onChange('hb', v)}
-                    style={styles.input}
-                  />
+            </View>
+            {/* Display screening data if available */}
+            {Boolean(data.latest_hemoglobin || data.screening_id) && (
+              <View style={styles.screeningSection}>
+                <View style={styles.sectionHeader}>
+                  <Icon name="heart-pulse" size={20} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>Latest Screening</Text>
                 </View>
-                <View style={styles.formField}>
-                  <Text style={styles.label}>Calcium (mg)</Text>
-                  <Input
-                    placeholder="Calcium"
-                    keyboardType="number-pad"
-                    value={
-                      data.calcium_qty != null ? String(data.calcium_qty) : ''
-                    }
-                    onChangeText={v =>
-                      onChange('calcium_qty', v.replace(/\D/g, ''))
-                    }
-                    style={styles.input}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formField}>
-                <Text style={styles.label}>Address</Text>
-                <Input
-                  placeholder="Address"
-                  value={data.address || ''}
-                  onChangeText={v => onChange('address', v)}
-                  style={[styles.input, {height: 88}]}
-                  multiline
-                />
-              </View>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.saveBtn,
-                    (!isDirty || saving) && styles.saveBtnDisabled,
-                  ]}
-                  onPress={onSave}
-                  disabled={saving || !isDirty}>
-                  {saving ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <View style={styles.saveBtnContent}>
-                      <Icon name="content-save" size={20} color="#fff" />
-                      <Text style={styles.saveBtnText}>Save Changes</Text>
+                {Boolean(data.latest_hemoglobin) && (
+                  <View style={styles.infoItem}>
+                    <Icon name="blood-bag" size={20} color={colors.primary} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Hemoglobin (Hb)</Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {data.latest_hemoglobin} g/dL
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="Hb value"
+                          keyboardType="decimal-pad"
+                          value={
+                            data.latest_hemoglobin
+                              ? String(data.latest_hemoglobin)
+                              : ''
+                          }
+                          onChangeText={v => onChange('latest_hemoglobin', v)}
+                          style={styles.inlineInput}
+                        />
+                      )}
                     </View>
-                  )}
-                </TouchableOpacity>
+                  </View>
+                )}
+                {Boolean(data.latest_anemia_category) && (
+                  <View style={styles.infoItem}>
+                    <Icon
+                      name="alert-circle"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Anemia Category</Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {data.latest_anemia_category}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="Anemia Category"
+                          value={data.latest_anemia_category || ''}
+                          onChangeText={v =>
+                            onChange('latest_anemia_category', v)
+                          }
+                          style={styles.inlineInput}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+                {Boolean(data.latest_pallor) && (
+                  <View style={styles.infoItem}>
+                    <Icon name="face-woman" size={20} color={colors.primary} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Pallor</Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {data.latest_pallor}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="Pallor"
+                          value={data.latest_pallor || ''}
+                          onChangeText={v => onChange('latest_pallor', v)}
+                          style={styles.inlineInput}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+                {Boolean(data.latest_visit_type) && (
+                  <View style={styles.infoItem}>
+                    <Icon
+                      name="hospital-box"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Visit Type</Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {data.latest_visit_type}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="Visit Type"
+                          value={data.latest_visit_type || ''}
+                          onChangeText={v => onChange('latest_visit_type', v)}
+                          style={styles.inlineInput}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+                {Boolean(data.latest_severity) && (
+                  <View style={styles.infoItem}>
+                    <Icon name="alert" size={20} color={colors.primary} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Severity</Text>
+                      {shouldShowReadOnly ? (
+                        <Text
+                          style={[
+                            styles.infoValue,
+                            data.latest_severity === 'severe' && {
+                              color: colors.error,
+                            },
+                            data.latest_severity === 'moderate' && {
+                              color: '#FF8C00',
+                            },
+                            data.latest_severity === 'mild' && {
+                              color: '#FFA500',
+                            },
+                          ]}>
+                          {data.latest_severity}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="Severity"
+                          value={data.latest_severity || ''}
+                          onChangeText={v => onChange('latest_severity', v)}
+                          style={styles.inlineInput}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+                {Boolean(data.screening_notes) && (
+                  <View style={styles.infoItem}>
+                    <Icon name="note-text" size={20} color={colors.primary} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Screening Notes</Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {data.screening_notes}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="Screening Notes"
+                          value={data.screening_notes || ''}
+                          onChangeText={v => onChange('screening_notes', v)}
+                          style={styles.inlineInput}
+                          multiline
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+                {Boolean(data.last_screening_date) && (
+                  <View style={styles.infoItem}>
+                    <Icon name="calendar" size={20} color={colors.primary} />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Last Screening Date</Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {dayjs(data.last_screening_date).format('DD-MM-YYYY')}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="DD-MM-YYYY"
+                          value={
+                            data.last_screening_date
+                              ? dayjs(data.last_screening_date).format(
+                                  'DD-MM-YYYY',
+                                )
+                              : ''
+                          }
+                          onChangeText={v => onChange('last_screening_date', v)}
+                          style={styles.inlineInput}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
+            )}
+
+            {/* Display intervention data if available */}
+            {Boolean(data.intervention_id) && (
+              <View style={styles.interventionSection}>
+                <View style={styles.sectionHeader}>
+                  <Icon
+                    name="medical-bag"
+                    size={20}
+                    color={colors.secondary || '#4CAF50'}
+                  />
+                  <Text style={styles.sectionTitle}>Latest Intervention</Text>
+                </View>
+                <View style={styles.infoItem}>
+                  <Icon
+                    name="pill"
+                    size={20}
+                    color={colors.secondary || '#4CAF50'}
+                  />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>IFA (Iron Folic Acid)</Text>
+                    {Boolean(data.intervention_ifa_yes) && (
+                      <Text style={styles.infoValue}>
+                        Yes ({data.intervention_ifa_quantity || 0} tablets)
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.infoItem}>
+                  <Icon
+                    name="bone"
+                    size={20}
+                    color={colors.secondary || '#4CAF50'}
+                  />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Calcium</Text>
+                    {Boolean(data.intervention_calcium_yes) && (
+                      <Text style={styles.infoValue}>
+                        Yes ({data.intervention_calcium_quantity || 0} tablets)
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.infoItem}>
+                  <Icon
+                    name="shield-check"
+                    size={20}
+                    color={colors.secondary || '#4CAF50'}
+                  />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Deworming</Text>
+                    {Boolean(data.intervention_deworm_yes) && (
+                      <Text style={styles.infoValue}>
+                        Yes ({data.intervention_deworming_date || 'Date N/A'})
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                <View style={styles.infoItem}>
+                  <Icon
+                    name="hospital-building"
+                    size={20}
+                    color={colors.secondary || '#4CAF50'}
+                  />
+                  <View style={styles.infoContent}>
+                    <Text style={styles.infoLabel}>Referral</Text>
+                    {Boolean(data.intervention_referral_yes) && (
+                      <Text style={styles.infoValue}>
+                        Yes (
+                        {data.intervention_referral_facility || 'Facility N/A'})
+                      </Text>
+                    )}
+                  </View>
+                </View>
+                {Boolean(data.intervention_therapeutic_yes) && (
+                  <View style={styles.infoItem}>
+                    <Icon
+                      name="medical-bag"
+                      size={20}
+                      color={colors.secondary || '#4CAF50'}
+                    />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>
+                        Therapeutic Management
+                      </Text>
+                      <Text style={styles.infoValue}>Yes</Text>
+                    </View>
+                  </View>
+                )}
+                {Boolean(data.intervention_therapeutic_notes) && (
+                  <View style={styles.infoItem}>
+                    <Icon
+                      name="note-text"
+                      size={20}
+                      color={colors.secondary || '#4CAF50'}
+                    />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>Therapeutic Notes</Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {data.intervention_therapeutic_notes}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="Therapeutic Notes"
+                          value={data.intervention_therapeutic_notes || ''}
+                          onChangeText={v =>
+                            onChange('intervention_therapeutic_notes', v)
+                          }
+                          style={styles.inlineInput}
+                          multiline
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+                {Boolean(data.last_intervention_date) && (
+                  <View style={styles.infoItem}>
+                    <Icon
+                      name="calendar"
+                      size={20}
+                      color={colors.secondary || '#4CAF50'}
+                    />
+                    <View style={styles.infoContent}>
+                      <Text style={styles.infoLabel}>
+                        Last Intervention Date
+                      </Text>
+                      {shouldShowReadOnly ? (
+                        <Text style={styles.infoValue}>
+                          {dayjs(data.last_intervention_date).format(
+                            'DD-MM-YYYY',
+                          )}
+                        </Text>
+                      ) : (
+                        <Input
+                          placeholder="DD-MM-YYYY"
+                          value={
+                            data.last_intervention_date
+                              ? dayjs(data.last_intervention_date).format(
+                                  'DD-MM-YYYY',
+                                )
+                              : ''
+                          }
+                          onChangeText={v =>
+                            onChange('last_intervention_date', v)
+                          }
+                          style={styles.inlineInput}
+                        />
+                      )}
+                    </View>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Save button for admin users */}
+          {!shouldShowReadOnly && data && (
+            <View style={styles.actionButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.saveBtn,
+                  (!isDirty || saving) && styles.saveBtnDisabled,
+                ]}
+                onPress={onSave}
+                disabled={saving || !isDirty}>
+                {saving ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <View style={styles.saveBtnContent}>
+                    <Icon name="content-save" size={20} color="#fff" />
+                    <Text style={styles.saveBtnText}>Save Changes</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -582,7 +874,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   infoSection: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   infoItem: {
     flexDirection: 'row',
@@ -593,6 +885,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.borderLight,
+    marginBottom: spacing.sm,
   },
   infoContent: {
     marginLeft: spacing.md,
@@ -611,11 +904,13 @@ const styles = StyleSheet.create({
   },
 
   // Editable styles
-  editableContainer: {},
+  editableContainer: {
+    gap: spacing.md,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
@@ -643,6 +938,16 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: 0,
+  },
+  inlineInput: {
+    marginBottom: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
   },
 
   // Action buttons
@@ -673,6 +978,7 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     fontSize: 16,
   },
+
   smsBtn: {
     backgroundColor: colors.secondary || '#4CAF50',
     padding: spacing.lg,
@@ -721,6 +1027,22 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
   },
   smallBtnText: {color: '#fff', marginLeft: 8},
+
+  // Screening and Intervention Section Styles
+  screeningSection: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 2,
+    borderTopColor: colors.primary + '30',
+    gap: spacing.sm,
+  },
+  interventionSection: {
+    marginTop: spacing.lg,
+    paddingTop: spacing.lg,
+    borderTopWidth: 2,
+    borderTopColor: (colors.secondary || '#4CAF50') + '30',
+    gap: spacing.sm,
+  },
 });
 
 export default BeneficiaryDetail;

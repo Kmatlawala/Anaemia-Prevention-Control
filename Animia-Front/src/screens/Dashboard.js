@@ -15,7 +15,6 @@ import {
   Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
 import {
   colors,
   spacing,
@@ -35,76 +34,60 @@ import {exportJsonToXlsx} from '../utils/export';
 import {API} from '../utils/api';
 import {getRole, clearRole} from '../utils/role';
 import {logout} from '../store/authSlice';
+import {useSelector} from 'react-redux';
 import SendSMS from '../components/SendSMS';
+import Search from './Search';
 
 const TILE_DATA = [
   {
     key: 'register',
     icon: 'account-plus',
-    label: 'Register New Beneficiary',
+    label: 'Registration',
     screen: 'Registration',
     variant: 'primary',
     gradient: true,
+    color: colors.primary,
   },
   {
     key: 'search',
     icon: 'account-search',
-    label: 'Search Beneficiary',
+    label: 'Searching',
     screen: 'Search',
     variant: 'info',
     gradient: true,
-  },
-  {
-    key: 'screening',
-    icon: 'stethoscope',
-    label: 'Screening',
-    screen: 'Screening',
-    variant: 'success',
-    gradient: true,
-  },
-  {
-    key: 'interventions',
-    icon: 'pill',
-    label: 'Interventions',
-    screen: 'Interventions',
-    variant: 'warning',
-    gradient: true,
+    color: colors.info,
   },
   {
     key: 'followup',
     icon: 'calendar-check',
     label: 'Follow-Up',
     screen: 'FollowUp',
-    variant: 'info',
+    variant: 'success',
     gradient: true,
+    color: colors.success,
   },
   {
     key: 'reports',
     icon: 'chart-line',
     label: 'Reports',
     screen: 'Reports',
-    variant: 'primary',
+    variant: 'warning',
     gradient: true,
-  },
-  {
-    key: 'information',
-    icon: 'information-outline',
-    label: 'Information',
-    screen: 'Information',
-    variant: 'default',
+    color: colors.warning,
   },
 ];
 
 const Dashboard = ({navigation}) => {
-  console.log('=== DASHBOARD COMPONENT RENDERED ===');
   const dispatch = useDispatch();
+  const authState = useSelector(state => state.auth);
+  const isAuthenticated = authState?.isAuthenticated || false;
+  const reduxRole = authState?.role || null;
+
   const [menuVisible, setMenuVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [smsModalVisible, setSmsModalVisible] = useState(false);
-  // <<--- init as undefined so we show loader until role is resolved
   const [role, setRoleState] = useState(undefined);
 
-  // animations
   const animValues = useRef(TILE_DATA.map(() => new Animated.Value(0))).current;
   const entryAnimation = useCallback(() => {
     const seq = animValues.map((v, i) =>
@@ -123,34 +106,22 @@ const Dashboard = ({navigation}) => {
   }, [entryAnimation]);
 
   useEffect(() => {
-    (async () => {
-      try {
-        console.log('=== DASHBOARD LOADING START ===');
-        console.log('Dashboard: Loading role...');
+    // Use Redux auth state instead of checking AsyncStorage directly
+    if (!isAuthenticated && !reduxRole) {
+      return;
+    }
 
-        console.log('Dashboard: Component loaded successfully!');
+    if (!isAuthenticated) {
+      // This should not happen as AuthNavigator should handle this
+      return;
+    }
 
-        const r = await getRole();
-        console.log('Dashboard: Role loaded from storage:', r);
-        console.log('Dashboard: Role type:', typeof r);
-        console.log('Dashboard: Role length:', r?.length);
-
-        if (!r) {
-          // no role — go to selection
-          console.log('Dashboard: No role found, navigating to RoleSelect');
-          navigation.replace('RoleSelect');
-        } else {
-          console.log('Dashboard: Setting role state to:', r);
-          setRoleState(r);
-          console.log('Dashboard: Role state set, staying on Dashboard');
-        }
-        console.log('=== DASHBOARD LOADING END ===');
-      } catch (error) {
-        console.error('Dashboard: Error loading role:', error);
-        navigation.replace('RoleSelect');
-      }
-    })();
-  }, [navigation]);
+    if (reduxRole) {
+      setRoleState(reduxRole);
+    } else {
+      setRoleState('admin'); // Default to admin if authenticated but no role
+    }
+  }, [isAuthenticated, reduxRole]);
 
   const onTilePress = useCallback(
     screen => {
@@ -163,15 +134,11 @@ const Dashboard = ({navigation}) => {
     setMenuVisible(false);
     setExporting(true);
     try {
-      console.log('[Dashboard] Starting comprehensive data export...');
-
       // Fetch beneficiaries with all related data (screening, intervention, follow-up)
       const response = await API.getBeneficiariesWithData(1000);
-      console.log('[Dashboard] API response:', response);
 
       // Extract data from response
       const data = response?.data || response;
-      console.log('[Dashboard] Extracted beneficiaries:', data?.length || 0);
 
       if (!Array.isArray(data) || data.length === 0) {
         Alert.alert('No Data', 'No beneficiary data available to export');
@@ -269,26 +236,9 @@ const Dashboard = ({navigation}) => {
         exportRow['Front Document'] = safeString(beneficiary.front_document);
         exportRow['Back Document'] = safeString(beneficiary.back_document);
         exportRow['Calcium Quantity'] = safeString(beneficiary.calcium_qty);
-
-        // Log first few rows for debugging
-        if (index < 3) {
-          console.log(
-            `[Dashboard] Export row ${index}:`,
-            Object.keys(exportRow).length,
-            'fields',
-          );
-        }
-
         exportData.push(exportRow);
       });
 
-      console.log(
-        '[Dashboard] Export data prepared:',
-        exportData.length,
-        'beneficiaries',
-      );
-
-      // Add summary statistics
       const summaryRows = [
         {
           Name: '=== EXPORT SUMMARY ===',
@@ -399,14 +349,6 @@ const Dashboard = ({navigation}) => {
 
       // Combine summary and data
       const finalExportData = [...summaryRows, ...exportData];
-
-      console.log(
-        '[Dashboard] Final export data:',
-        finalExportData.length,
-        'total rows',
-      );
-
-      // Export the comprehensive data
       await exportJsonToXlsx(finalExportData, 'Animia_Complete_Data');
 
       Alert.alert(
@@ -447,16 +389,11 @@ const Dashboard = ({navigation}) => {
 
   const renderDashboardHeader = () => (
     <View style={styles.dashboardHeader}>
-      <LinearGradient
-        colors={colors.gradientPrimary}
-        start={{x: 0, y: 0}}
-        end={{x: 1, y: 1}}
-        style={styles.welcomeCard}>
-        <Text style={styles.welcomeTitle}>Welcome to Animia</Text>
+      <View style={styles.welcomeCard}>
         <Text style={styles.welcomeSubtitle}>
           Anaemia Prevention & Control System
         </Text>
-      </LinearGradient>
+      </View>
     </View>
   );
 
@@ -479,23 +416,23 @@ const Dashboard = ({navigation}) => {
             // Reset local state
             setRoleState(null);
             setMenuVisible(false);
-            // Navigate to role selection
-            navigation.replace('RoleSelect');
+            // AuthNavigator will automatically redirect to AdminLogin
+            // No need to manually navigate
           } catch (error) {
             console.error('Logout error:', error);
             // Even if there's an error, still try to logout
             dispatch(logout());
             setRoleState(null);
             setMenuVisible(false);
-            navigation.replace('RoleSelect');
+            // AuthNavigator will handle the redirect
           }
         },
       },
     ]);
   }, [dispatch, navigation]);
 
-  // show loader while role is being resolved
-  if (role === undefined) {
+  // show loader while role is being resolved or auth state is not ready
+  if (role === undefined || !authState) {
     return (
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -509,48 +446,75 @@ const Dashboard = ({navigation}) => {
   const visibleTiles = isPatient
     ? TILE_DATA.filter(t => ['search', 'information'].includes(t.key))
     : TILE_DATA;
-
-  // helpful logs (optional)
-  console.log('role', role);
-  console.log('isPatient ======= ', isPatient);
-  console.log('visibleTiles.length ======= ', visibleTiles.length);
-
   return (
     <View style={styles.root}>
       <Header
-        title="Anaemia Prevention & Control"
+        title="Anemia Prevention"
         onMenuPress={() => setMenuVisible(true)}
-        onBellPress={() => navigation.navigate('Notifications')}
+        rightIcon2Name="information-outline"
+        onRightIcon2Press={() => navigation.navigate('Information')}
         rightIconName="bell-outline"
+        onBellPress={() => navigation.navigate('Notifications')}
+        role={role}
       />
 
       <ScrollView
         style={styles.scrollContainer}
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}>
-        {renderDashboardHeader()}
+        {isPatient ? (
+          // Search component for patient users (without header)
+          <Search navigation={navigation} hideHeader={true} />
+        ) : (
+          // Quick Actions for admin users
+          <>
+            <View style={styles.quickActionsHeader}>
+              <View style={styles.quickActionsTitleContainer}>
+                <Icon name="lightning-bolt" size={24} color={colors.text} />
+                <Text style={styles.sectionTitle}>Quick Actions</Text>
+              </View>
+              <Text style={styles.sectionSubtitle}>
+                Access all features quickly
+              </Text>
+            </View>
 
-        <View style={styles.quickActionsHeader}>
-          <View style={styles.quickActionsTitleContainer}>
-            <Icon name="lightning-bolt" size={24} color={colors.primary} />
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-          </View>
-          <Text style={styles.sectionSubtitle}>
-            Access all features quickly
-          </Text>
-        </View>
-
-        <FlatList
-          data={visibleTiles}
-          renderItem={renderItem}
-          keyExtractor={keyExtractor}
-          scrollEnabled={false}
-          numColumns={1}
-          removeClippedSubviews
-          initialNumToRender={6}
-          maxToRenderPerBatch={8}
-          windowSize={9}
-        />
+            <View style={styles.quickActionsGrid}>
+              {visibleTiles.map((item, index) => (
+                <View key={item.key} style={styles.quickActionBox}>
+                  <TouchableOpacity
+                    style={[
+                      styles.quickActionButton,
+                      {
+                        backgroundColor: item.color + '08',
+                        borderColor: item.color + '15',
+                      },
+                    ]}
+                    onPress={() => onTilePress(item.screen)}
+                    activeOpacity={0.7}>
+                    <View
+                      style={[
+                        styles.quickActionIconContainer,
+                        {backgroundColor: item.color + '10'},
+                      ]}>
+                      <Icon name={item.icon} size={28} color={item.color} />
+                    </View>
+                    <Text
+                      style={[styles.quickActionLabel, {color: item.color}]}>
+                      {item.label}
+                    </Text>
+                    <View
+                      style={[
+                        styles.arrowContainer,
+                        {backgroundColor: item.color + '20'},
+                      ]}>
+                      <Icon name="arrow-right" size={16} color={item.color} />
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </>
+        )}
       </ScrollView>
 
       <Modal
@@ -597,9 +561,9 @@ const Dashboard = ({navigation}) => {
                     <View
                       style={[
                         styles.menuIconContainer,
-                        {backgroundColor: colors.primary + '20'},
+                        {backgroundColor: colors.surface},
                       ]}>
-                      <Icon name="chart-box" size={20} color={colors.primary} />
+                      <Icon name="chart-box" size={20} color={colors.text} />
                     </View>
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>Reports</Text>
@@ -621,13 +585,9 @@ const Dashboard = ({navigation}) => {
                     <View
                       style={[
                         styles.menuIconContainer,
-                        {backgroundColor: colors.success + '20'},
+                        {backgroundColor: colors.surface},
                       ]}>
-                      <Icon
-                        name="file-excel"
-                        size={20}
-                        color={colors.success}
-                      />
+                      <Icon name="file-excel" size={20} color={colors.text} />
                     </View>
                     <View style={styles.menuItemContent}>
                       <Text style={styles.menuItemText}>
@@ -645,9 +605,7 @@ const Dashboard = ({navigation}) => {
                   </TouchableOpacity>
                 </>
               )}
-
               <View style={styles.menuDivider} />
-
               <TouchableOpacity
                 style={[styles.menuItem, styles.logoutItem]}
                 onPress={handleLogout}
@@ -655,12 +613,12 @@ const Dashboard = ({navigation}) => {
                 <View
                   style={[
                     styles.menuIconContainer,
-                    {backgroundColor: colors.error + '20'},
+                    {backgroundColor: colors.surface},
                   ]}>
-                  <Icon name="logout" size={20} color={colors.error} />
+                  <Icon name="logout" size={20} color={colors.text} />
                 </View>
                 <View style={styles.menuItemContent}>
-                  <Text style={[styles.menuItemText, {color: colors.error}]}>
+                  <Text style={[styles.menuItemText, {color: colors.text}]}>
                     Logout
                   </Text>
                   <Text style={styles.menuItemSubtext}>
@@ -698,7 +656,7 @@ const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: colors.background},
   scrollContainer: {flex: 1},
   container: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
   },
@@ -707,19 +665,20 @@ const styles = StyleSheet.create({
   },
   welcomeCard: {
     borderRadius: borderRadius.sm,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     marginBottom: spacing.sm,
+    backgroundColor: colors.surface,
     ...shadows.sm,
   },
   welcomeTitle: {
     ...typography.title,
-    color: colors.white,
+    color: colors.text,
     marginBottom: spacing.xs,
   },
   welcomeSubtitle: {
     ...typography.body,
-    color: colors.white,
-    opacity: 0.9,
+    color: colors.textSecondary,
   },
   quickActionsHeader: {
     marginBottom: spacing.lg,
@@ -732,7 +691,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     ...typography.subtitle,
-    color: colors.text,
+    color: colors.primary,
     marginLeft: spacing.sm,
     fontWeight: typography.weights.semibold,
   },
@@ -741,13 +700,57 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginLeft: spacing.xl,
   },
+  quickActionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  quickActionBox: {
+    width: '48%',
+    marginBottom: spacing.md,
+  },
+  quickActionButton: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
+    borderWidth: 1,
+  },
+  quickActionIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  quickActionLabel: {
+    ...typography.caption,
+    color: colors.text,
+    textAlign: 'center',
+    fontSize: 14,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.xs,
+  },
+  arrowContainer: {
+    marginTop: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+  },
   modalOverlay: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
     paddingTop: 60,
-    paddingLeft: spacing.md,
+    paddingLeft: spacing.horizontal, // 16px left
   },
   modalBackdrop: {
     position: 'absolute',
@@ -768,7 +771,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
@@ -813,7 +817,7 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
     paddingVertical: spacing.md,
     marginHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
@@ -843,7 +847,7 @@ const styles = StyleSheet.create({
   menuDivider: {
     height: 1,
     backgroundColor: colors.borderLight,
-    marginHorizontal: spacing.lg,
+    marginHorizontal: spacing.horizontal, // 16px left/right
     marginVertical: spacing.sm,
   },
   logoutItem: {

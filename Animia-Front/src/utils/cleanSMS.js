@@ -1,4 +1,4 @@
-import { Alert, Linking, Platform, NativeModules } from 'react-native';
+import {Alert, Linking, Platform, NativeModules} from 'react-native';
 
 /**
  * Clean SMS Utility
@@ -6,7 +6,7 @@ import { Alert, Linking, Platform, NativeModules } from 'react-native';
  */
 
 // Get native SMS module
-const { SMSModule } = NativeModules;
+const {SMSModule} = NativeModules;
 
 /**
  * Format phone number for SMS
@@ -15,10 +15,10 @@ const { SMSModule } = NativeModules;
  */
 export function formatPhoneNumber(phoneNumber) {
   if (!phoneNumber) return '';
-  
+
   // Remove all non-digit characters
   const cleaned = phoneNumber.replace(/\D/g, '');
-  
+
   // Add country code if not present (assuming India +91)
   if (cleaned.length === 10) {
     return '+91' + cleaned;
@@ -27,7 +27,7 @@ export function formatPhoneNumber(phoneNumber) {
   } else if (cleaned.startsWith('+')) {
     return cleaned;
   }
-  
+
   return '+' + cleaned;
 }
 
@@ -52,20 +52,20 @@ export async function sendNativeSMS(phoneNumber, message) {
   try {
     console.log('[Native SMS] Sending SMS to:', phoneNumber);
     console.log('[Native SMS] Message:', message);
-    
+
     if (!SMSModule) {
       console.error('[Native SMS] SMSModule not available');
       return false;
     }
-    
+
     // Format phone number
     const formattedNumber = formatPhoneNumber(phoneNumber);
     console.log('[Native SMS] Formatted number:', formattedNumber);
-    
+
     // Send SMS using native module
     const result = await SMSModule.sendSMS(formattedNumber, message);
     console.log('[Native SMS] Native SMS result:', result);
-    
+
     if (result && result.success) {
       console.log('[Native SMS] SMS sent successfully');
       return true;
@@ -73,7 +73,6 @@ export async function sendNativeSMS(phoneNumber, message) {
       console.error('[Native SMS] SMS sending failed:', result);
       return false;
     }
-    
   } catch (error) {
     console.error('[Native SMS] Error:', error);
     return false;
@@ -89,23 +88,22 @@ export async function sendNativeSMS(phoneNumber, message) {
 export async function sendSMSApp(phoneNumber, message) {
   try {
     console.log('[SMS App] Opening SMS app for:', phoneNumber);
-    
+
     // Format phone number
     const formattedNumber = formatPhoneNumber(phoneNumber);
     console.log('[SMS App] Formatted number:', formattedNumber);
-    
+
     // Create SMS URL
     const smsUrl = `sms:${formattedNumber}?body=${encodeURIComponent(message)}`;
     console.log('[SMS App] SMS URL:', smsUrl);
-    
+
     // Open SMS app
     await Linking.openURL(smsUrl);
     console.log('[SMS App] SMS app opened successfully');
     return true;
-    
   } catch (error) {
     console.error('[SMS App] Error:', error);
-    Alert.alert('SMS Error', 'Failed to open SMS app: ' + error.message);
+    console.error('[Clean SMS] Failed to open SMS app:', error.message);
     return false;
   }
 }
@@ -119,7 +117,7 @@ export async function sendSMSApp(phoneNumber, message) {
 export async function sendSMS(phoneNumber, message) {
   try {
     console.log('[Smart SMS] Sending SMS to:', phoneNumber);
-    
+
     // Try native SMS first
     if (SMSModule) {
       console.log('[Smart SMS] Trying native SMS...');
@@ -130,15 +128,14 @@ export async function sendSMS(phoneNumber, message) {
       }
       console.log('[Smart SMS] Native SMS failed, trying SMS app...');
     }
-    
+
     // Fallback to SMS app
     console.log('[Smart SMS] Using SMS app fallback...');
     const appResult = await sendSMSApp(phoneNumber, message);
     return appResult;
-    
   } catch (error) {
     console.error('[Smart SMS] Error:', error);
-    Alert.alert('SMS Error', 'Failed to send SMS: ' + error.message);
+    console.error('[Clean SMS] Failed to send SMS:', error.message);
     return false;
   }
 }
@@ -153,7 +150,7 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
   try {
     if (!beneficiary) {
       Alert.alert('Error', 'No beneficiary data provided');
-      return { success: false, results: [] };
+      return {success: false, results: []};
     }
 
     const contacts = [];
@@ -163,47 +160,61 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
     if (beneficiary.phone && isValidPhoneNumber(beneficiary.phone)) {
       contacts.push({
         type: 'Primary Phone',
-        number: formatPhoneNumber(beneficiary.phone)
+        number: formatPhoneNumber(beneficiary.phone),
       });
     }
 
     if (beneficiary.alt_phone && isValidPhoneNumber(beneficiary.alt_phone)) {
       contacts.push({
         type: 'Alternative Phone',
-        number: formatPhoneNumber(beneficiary.alt_phone)
+        number: formatPhoneNumber(beneficiary.alt_phone),
       });
     }
 
-    if (beneficiary.doctor_phone && isValidPhoneNumber(beneficiary.doctor_phone)) {
+    if (
+      beneficiary.doctor_phone &&
+      isValidPhoneNumber(beneficiary.doctor_phone)
+    ) {
       contacts.push({
         type: 'Doctor Phone',
-        number: formatPhoneNumber(beneficiary.doctor_phone)
+        number: formatPhoneNumber(beneficiary.doctor_phone),
       });
     }
 
     if (contacts.length === 0) {
-      Alert.alert('No Contacts', 'No valid phone numbers found for this beneficiary');
-      return { success: false, results: [] };
+      Alert.alert(
+        'No Contacts',
+        'No valid phone numbers found for this beneficiary',
+      );
+      return {success: false, results: []};
     }
 
-    console.log(`[Clean SMS] Sending to ${contacts.length} contacts for: ${beneficiary.name}`);
+    console.log(
+      `[Clean SMS] Sending to ${contacts.length} contacts for: ${beneficiary.name}`,
+    );
 
     // Send SMS to each contact
     for (const contact of contacts) {
       try {
         const personalizedMessage = `Hello ${beneficiary.name} (${contact.type}),\n\n${message}`;
-        
-        console.log(`[Beneficiary SMS] Sending to ${contact.type}: ${contact.number}`);
-        
+
+        console.log(
+          `[Beneficiary SMS] Sending to ${contact.type}: ${contact.number}`,
+        );
+
         // Try native SMS first, then fallback to SMS app
         const success = await sendSMS(contact.number, personalizedMessage);
-        
+
         results.push({
           contact: contact,
-          success: success
+          success: success,
         });
 
-        console.log(`[Beneficiary SMS] ${contact.type}: ${success ? 'Success' : 'Failed'}`);
+        console.log(
+          `[Beneficiary SMS] ${contact.type}: ${
+            success ? 'Success' : 'Failed'
+          }`,
+        );
 
         // Small delay between SMS (for native SMS)
         if (SMSModule) {
@@ -217,7 +228,7 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
         results.push({
           contact: contact,
           success: false,
-          error: error.message
+          error: error.message,
         });
       }
     }
@@ -230,8 +241,10 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
     Alert.alert(
       'SMS Results',
       `${method} sent to ${successCount}/${totalCount} contacts:\n\n` +
-      results.map(r => `${r.contact.type}: ${r.success ? '✓' : '✗'}`).join('\n'),
-      [{ text: 'OK' }]
+        results
+          .map(r => `${r.contact.type}: ${r.success ? '✓' : '✗'}`)
+          .join('\n'),
+      [{text: 'OK'}],
     );
 
     return {
@@ -240,14 +253,13 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
       summary: {
         total: totalCount,
         successful: successCount,
-        failed: totalCount - successCount
-      }
+        failed: totalCount - successCount,
+      },
     };
-
   } catch (error) {
     console.error('[Clean SMS] Error:', error);
-    Alert.alert('Error', 'Failed to send SMS: ' + error.message);
-    return { success: false, results: [] };
+    console.error('[Clean SMS] Failed to send SMS:', error.message);
+    return {success: false, results: []};
   }
 }
 
@@ -261,38 +273,41 @@ export async function sendSMSToAllBeneficiaries(beneficiaries, message) {
   try {
     if (!beneficiaries || beneficiaries.length === 0) {
       Alert.alert('Error', 'No beneficiaries provided');
-      return { success: false, results: [] };
+      return {success: false, results: []};
     }
 
     console.log(`[Clean SMS] Sending to ${beneficiaries.length} beneficiaries`);
 
     const results = [];
-    
+
     for (const beneficiary of beneficiaries) {
       try {
         const result = await sendSMSToBeneficiary(beneficiary, message);
         results.push({
           beneficiary: beneficiary,
-          result: result
+          result: result,
         });
-        
+
         // Wait between beneficiaries
         await new Promise(resolve => setTimeout(resolve, 3000));
       } catch (error) {
-        console.error(`[Clean SMS] Error for beneficiary ${beneficiary.name}:`, error);
+        console.error(
+          `[Clean SMS] Error for beneficiary ${beneficiary.name}:`,
+          error,
+        );
         results.push({
           beneficiary: beneficiary,
-          result: { success: false, error: error.message }
+          result: {success: false, error: error.message},
         });
       }
     }
 
     const successCount = results.filter(r => r.result.success).length;
-    
+
     Alert.alert(
       'Bulk SMS Results',
       `SMS sent to ${successCount}/${beneficiaries.length} beneficiaries`,
-      [{ text: 'OK' }]
+      [{text: 'OK'}],
     );
 
     return {
@@ -301,14 +316,13 @@ export async function sendSMSToAllBeneficiaries(beneficiaries, message) {
       summary: {
         total: beneficiaries.length,
         successful: successCount,
-        failed: beneficiaries.length - successCount
-      }
+        failed: beneficiaries.length - successCount,
+      },
     };
-
   } catch (error) {
     console.error('[Clean SMS] Bulk SMS error:', error);
-    Alert.alert('Error', 'Failed to send bulk SMS: ' + error.message);
-    return { success: false, results: [] };
+    console.error('[Clean SMS] Failed to send bulk SMS:', error.message);
+    return {success: false, results: []};
   }
 }
 
@@ -318,7 +332,11 @@ export async function sendSMSToAllBeneficiaries(beneficiaries, message) {
  * @returns {Promise<boolean>} - Success status
  */
 export async function sendRegistrationSMS(beneficiary) {
-  const message = `Hello ${beneficiary.name}, your registration with Animia is successful. Your ID: ${beneficiary.short_id || 'N/A'}. Thank you for joining our health program.`;
+  const message = `Hello ${
+    beneficiary.name
+  }, your registration with Animia is successful. Your ID: ${
+    beneficiary.short_id || 'N/A'
+  }. Thank you for joining our health program.`;
   return await sendSMSToBeneficiary(beneficiary, message);
 }
 

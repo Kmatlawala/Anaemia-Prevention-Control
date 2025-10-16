@@ -1,21 +1,29 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Alert, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { 
+import React, {useState, useEffect} from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import {
   getAvailableDevices,
   sendSMSToAllDevices,
   sendBeneficiarySMSToAllDevices,
   sendBulkSMSToAllDevices,
-  getDevicesSMSStatus 
+  getDevicesSMSStatus,
 } from '../utils/multiDeviceSMS';
 
 /**
  * Multi-Device SMS Component
  * Handles SMS sending across multiple devices
  */
-const MultiDeviceSMSComponent = ({ 
-  beneficiaries = [], 
+const MultiDeviceSMSComponent = ({
+  beneficiaries = [],
   onSMSComplete = () => {},
-  style = {} 
+  style = {},
 }) => {
   const [devices, setDevices] = useState([]);
   const [selectedDevices, setSelectedDevices] = useState([]);
@@ -47,11 +55,11 @@ const MultiDeviceSMSComponent = ({
     }
   };
 
-  const toggleDeviceSelection = (deviceId) => {
-    setSelectedDevices(prev => 
-      prev.includes(deviceId) 
+  const toggleDeviceSelection = deviceId => {
+    setSelectedDevices(prev =>
+      prev.includes(deviceId)
         ? prev.filter(id => id !== deviceId)
-        : [...prev, deviceId]
+        : [...prev, deviceId],
     );
   };
 
@@ -69,25 +77,28 @@ const MultiDeviceSMSComponent = ({
     setIsLoading(true);
     try {
       const result = await sendSMSToAllDevices('9876543210', message); // Replace with actual number
-      
+
       Alert.alert(
         'Multi-Device SMS Results',
         `Sent to ${result.summary.successful}/${result.summary.total} devices\n` +
-        `Failed: ${result.summary.failed}`,
-        [{ text: 'OK' }]
+          `Failed: ${result.summary.failed}`,
+        [{text: 'OK'}],
       );
 
-      onSMSComplete({ type: 'multi_device', result });
+      onSMSComplete({type: 'multi_device', result});
       loadDeviceStatus(); // Refresh status
     } catch (error) {
       console.error('Multi-device SMS error:', error);
-      Alert.alert('Error', 'Failed to send SMS to devices: ' + error.message);
+      console.error(
+        '[MultiDeviceSMSComponent] Failed to send SMS to devices:',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSendBeneficiaryToAllDevices = async (beneficiary) => {
+  const handleSendBeneficiaryToAllDevices = async beneficiary => {
     if (!message.trim()) {
       Alert.alert('Error', 'Please enter a message');
       return;
@@ -95,21 +106,32 @@ const MultiDeviceSMSComponent = ({
 
     setIsLoading(true);
     try {
-      const result = await sendBeneficiarySMSToAllDevices(beneficiary, message, true);
-      
+      const result = await sendBeneficiarySMSToAllDevices(
+        beneficiary,
+        message,
+        true,
+      );
+
       Alert.alert(
         'Beneficiary Multi-Device SMS',
         `Sent to ${result.overallSummary.successfulAttempts}/${result.overallSummary.totalAttempts} attempts\n` +
-        `Devices: ${result.overallSummary.totalDevices}\n` +
-        `Contacts: ${result.overallSummary.totalContacts}`,
-        [{ text: 'OK' }]
+          `Devices: ${result.overallSummary.totalDevices}\n` +
+          `Contacts: ${result.overallSummary.totalContacts}`,
+        [{text: 'OK'}],
       );
 
-      onSMSComplete({ type: 'beneficiary_multi_device', beneficiary: beneficiary.name, result });
+      onSMSComplete({
+        type: 'beneficiary_multi_device',
+        beneficiary: beneficiary.name,
+        result,
+      });
       loadDeviceStatus();
     } catch (error) {
       console.error('Beneficiary multi-device SMS error:', error);
-      Alert.alert('Error', 'Failed to send beneficiary SMS to devices: ' + error.message);
+      console.error(
+        '[MultiDeviceSMSComponent] Failed to send beneficiary SMS to devices:',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -128,21 +150,32 @@ const MultiDeviceSMSComponent = ({
 
     setIsLoading(true);
     try {
-      const result = await sendBulkSMSToAllDevices(beneficiaries, message, true);
-      
+      const result = await sendBulkSMSToAllDevices(
+        beneficiaries,
+        message,
+        true,
+      );
+
       Alert.alert(
         'Bulk Multi-Device SMS',
         `Sent to ${result.overallSummary.successfulAttempts}/${result.overallSummary.totalAttempts} attempts\n` +
-        `Devices: ${result.overallSummary.totalDevices}\n` +
-        `Beneficiaries: ${result.overallSummary.totalBeneficiaries}`,
-        [{ text: 'OK' }]
+          `Devices: ${result.overallSummary.totalDevices}\n` +
+          `Beneficiaries: ${result.overallSummary.totalBeneficiaries}`,
+        [{text: 'OK'}],
       );
 
-      onSMSComplete({ type: 'bulk_multi_device', count: beneficiaries.length, result });
+      onSMSComplete({
+        type: 'bulk_multi_device',
+        count: beneficiaries.length,
+        result,
+      });
       loadDeviceStatus();
     } catch (error) {
       console.error('Bulk multi-device SMS error:', error);
-      Alert.alert('Error', 'Failed to send bulk SMS to devices: ' + error.message);
+      console.error(
+        '[MultiDeviceSMSComponent] Failed to send bulk SMS to devices:',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -151,15 +184,23 @@ const MultiDeviceSMSComponent = ({
   return (
     <ScrollView style={[styles.container, style]}>
       <Text style={styles.title}>Multi-Device SMS</Text>
-      
+
       {/* Device Status */}
       {deviceStatus && (
         <View style={styles.statusContainer}>
           <Text style={styles.statusTitle}>Device Status</Text>
-          <Text style={styles.statusText}>Total Devices: {deviceStatus.summary.total}</Text>
-          <Text style={styles.statusText}>Online: {deviceStatus.summary.online}</Text>
-          <Text style={styles.statusText}>Offline: {deviceStatus.summary.offline}</Text>
-          <Text style={styles.statusText}>Total SMS Sent: {deviceStatus.summary.totalSMS}</Text>
+          <Text style={styles.statusText}>
+            Total Devices: {deviceStatus.summary.total}
+          </Text>
+          <Text style={styles.statusText}>
+            Online: {deviceStatus.summary.online}
+          </Text>
+          <Text style={styles.statusText}>
+            Offline: {deviceStatus.summary.offline}
+          </Text>
+          <Text style={styles.statusText}>
+            Total SMS Sent: {deviceStatus.summary.totalSMS}
+          </Text>
         </View>
       )}
 
@@ -171,14 +212,16 @@ const MultiDeviceSMSComponent = ({
             key={device.id}
             style={[
               styles.deviceButton,
-              selectedDevices.includes(device.id) && styles.deviceButtonSelected
+              selectedDevices.includes(device.id) &&
+                styles.deviceButtonSelected,
             ]}
-            onPress={() => toggleDeviceSelection(device.id)}
-          >
-            <Text style={[
-              styles.deviceButtonText,
-              selectedDevices.includes(device.id) && styles.deviceButtonTextSelected
-            ]}>
+            onPress={() => toggleDeviceSelection(device.id)}>
+            <Text
+              style={[
+                styles.deviceButtonText,
+                selectedDevices.includes(device.id) &&
+                  styles.deviceButtonTextSelected,
+              ]}>
               {device.name} ({device.id})
             </Text>
           </TouchableOpacity>
@@ -204,8 +247,7 @@ const MultiDeviceSMSComponent = ({
         <TouchableOpacity
           style={[styles.button, styles.allDevicesButton]}
           onPress={handleSendToAllDevices}
-          disabled={isLoading}
-        >
+          disabled={isLoading}>
           <Text style={styles.buttonText}>
             {isLoading ? 'Sending...' : 'Send to All Devices'}
           </Text>
@@ -215,10 +257,11 @@ const MultiDeviceSMSComponent = ({
           <TouchableOpacity
             style={[styles.button, styles.bulkButton]}
             onPress={handleSendBulkToAllDevices}
-            disabled={isLoading}
-          >
+            disabled={isLoading}>
             <Text style={styles.buttonText}>
-              {isLoading ? 'Sending...' : `Send Bulk to All Devices (${beneficiaries.length})`}
+              {isLoading
+                ? 'Sending...'
+                : `Send Bulk to All Devices (${beneficiaries.length})`}
             </Text>
           </TouchableOpacity>
         )}
@@ -231,11 +274,8 @@ const MultiDeviceSMSComponent = ({
           <TouchableOpacity
             style={[styles.button, styles.beneficiaryButton]}
             onPress={() => handleSendBeneficiaryToAllDevices(beneficiary)}
-            disabled={isLoading}
-          >
-            <Text style={styles.buttonText}>
-              Send to All Devices
-            </Text>
+            disabled={isLoading}>
+            <Text style={styles.buttonText}>Send to All Devices</Text>
           </TouchableOpacity>
         </View>
       ))}
@@ -245,11 +285,17 @@ const MultiDeviceSMSComponent = ({
         <View key={device.id} style={styles.deviceResultContainer}>
           <Text style={styles.deviceResultTitle}>{device.name}</Text>
           <Text style={styles.deviceResultText}>ID: {device.id}</Text>
-          <Text style={styles.deviceResultText}>Status: {device.online ? 'Online' : 'Offline'}</Text>
+          <Text style={styles.deviceResultText}>
+            Status: {device.online ? 'Online' : 'Offline'}
+          </Text>
           {device.lastSMS && (
-            <Text style={styles.deviceResultText}>Last SMS: {device.lastSMS}</Text>
+            <Text style={styles.deviceResultText}>
+              Last SMS: {device.lastSMS}
+            </Text>
           )}
-          <Text style={styles.deviceResultText}>SMS Count: {device.smsCount || 0}</Text>
+          <Text style={styles.deviceResultText}>
+            SMS Count: {device.smsCount || 0}
+          </Text>
         </View>
       ))}
 
@@ -261,7 +307,8 @@ const MultiDeviceSMSComponent = ({
       )}
 
       <Text style={styles.infoText}>
-        This component sends SMS across multiple devices. Each device will attempt to send the SMS to all 3 contact numbers of beneficiaries.
+        This component sends SMS across multiple devices. Each device will
+        attempt to send the SMS to all 3 contact numbers of beneficiaries.
       </Text>
     </ScrollView>
   );

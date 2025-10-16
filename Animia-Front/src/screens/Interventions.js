@@ -13,6 +13,8 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Input from '../components/Input';
 import DateInput from '../components/DateInput';
 import Header from '../components/Header';
+import ProgressIndicator from '../components/ProgressIndicator';
+import ThankYouPopup from '../components/ThankYouPopup';
 import {
   colors,
   spacing,
@@ -24,6 +26,15 @@ import {
 import dayjs from 'dayjs';
 import {RadioButton, TouchableRipple} from 'react-native-paper';
 import {API} from '../utils/api';
+import {useDispatch, useSelector} from 'react-redux';
+import {
+  fetchBeneficiaries,
+  selectBeneficiaries,
+  selectBeneficiaryLoading,
+  selectBeneficiaryError,
+  addIntervention,
+} from '../store/beneficiarySlice';
+import NetworkStatus from '../components/NetworkStatus';
 
 const GAP = spacing.md;
 const HALF = Math.max(6, spacing.xs);
@@ -69,7 +80,15 @@ const YesNoRow = ({label, value, onChange, error, required}) => {
 };
 
 const Interventions = ({route, navigation}) => {
+  const dispatch = useDispatch();
   const beneficiaryId = route?.params?.beneficiaryId || null;
+  const beneficiaryData = route?.params?.beneficiaryData || null;
+  const fromFlow = route?.params?.fromFlow || false;
+
+  // Get beneficiaries from Redux store (with offline caching)
+  const beneficiaries = useSelector(selectBeneficiaries);
+  const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
+  const beneficiaryError = useSelector(selectBeneficiaryError);
 
   // Search and selection states
   const [searchQuery, setSearchQuery] = useState('');
@@ -96,7 +115,21 @@ const Interventions = ({route, navigation}) => {
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [errors, setErrors] = useState({});
+  const [showThankYou, setShowThankYou] = useState(false);
   const scrollRef = useRef(null);
+
+  // Load beneficiaries on component mount
+  useEffect(() => {
+    dispatch(fetchBeneficiaries());
+  }, [dispatch]);
+
+  // Auto-select beneficiary if coming from flow
+  useEffect(() => {
+    if (fromFlow && beneficiaryData) {
+      setSelectedBeneficiary(beneficiaryData);
+      setSearchQuery(beneficiaryData.name);
+    }
+  }, [fromFlow, beneficiaryData]);
 
   // Search functionality
   useEffect(() => {
@@ -109,24 +142,19 @@ const Interventions = ({route, navigation}) => {
 
       setIsSearching(true);
       try {
-        const response = await API.getBeneficiaries(100);
-        console.log('[Interventions] API response:', response);
-        
-        // Extract data from response
-        const beneficiaries = response?.data || response;
-        console.log('[Interventions] Extracted beneficiaries:', beneficiaries);
-        
-        if (!Array.isArray(beneficiaries)) {
-          console.warn(
-            '[Interventions] API returned non-array:',
-            beneficiaries,
-          );
+        // Fetch beneficiaries from Redux store (with offline caching)
+        await dispatch(fetchBeneficiaries());
+
+        // Use beneficiaries from Redux store
+        const allBeneficiaries = beneficiaries;
+        if (!Array.isArray(allBeneficiaries) || allBeneficiaries.length === 0) {
+          console.warn('[Interventions] No beneficiaries data available');
           setSearchResults([]);
           setShowSearchResults(false);
           return;
         }
-        
-        const filtered = beneficiaries.filter(
+
+        const filtered = allBeneficiaries.filter(
           beneficiary =>
             beneficiary.name
               ?.toLowerCase()
@@ -137,12 +165,40 @@ const Interventions = ({route, navigation}) => {
             beneficiary.id_number
               ?.toLowerCase()
               .includes(searchQuery.toLowerCase()) ||
-          beneficiary.phone?.includes(searchQuery) ||
+            beneficiary.phone?.includes(searchQuery) ||
             beneficiary.doctor_name
               ?.toLowerCase()
               .includes(searchQuery.toLowerCase()),
         );
-        setSearchResults(filtered);
+
+        // Transform the data to include latest_screening and latest_intervention objects
+        const transformedBeneficiaries = filtered.map(beneficiary => ({
+          ...beneficiary,
+          latest_screening: beneficiary.latest_hemoglobin
+            ? {
+                hemoglobin: beneficiary.latest_hemoglobin,
+                anemia_category: beneficiary.latest_anemia_category,
+                notes: beneficiary.screening_notes,
+                created_at: beneficiary.last_screening_date,
+              }
+            : null,
+          latest_intervention: beneficiary.intervention_id
+            ? {
+                ifa_yes: beneficiary.intervention_ifa_yes,
+                ifa_quantity: beneficiary.intervention_ifa_quantity,
+                calcium_yes: beneficiary.intervention_calcium_yes,
+                calcium_quantity: beneficiary.intervention_calcium_quantity,
+                deworm_yes: beneficiary.intervention_deworm_yes,
+                deworming_date: beneficiary.intervention_deworming_date,
+                therapeutic_yes: beneficiary.intervention_therapeutic_yes,
+                therapeutic_notes: beneficiary.intervention_therapeutic_notes,
+                referral_yes: beneficiary.intervention_referral_yes,
+                referral_facility: beneficiary.intervention_referral_facility,
+                created_at: beneficiary.last_intervention_date,
+              }
+            : null,
+        }));
+        setSearchResults(transformedBeneficiaries);
         setShowSearchResults(true);
       } catch (error) {
         console.error('Search error:', error);
@@ -228,19 +284,20 @@ const Interventions = ({route, navigation}) => {
         doctor_name: selectedBeneficiary.doctor_name || null,
       };
 
-      console.log('Saving intervention data:', {
-        beneficiaryId: selectedBeneficiary.id,
-        interventionData,
-      });
-
-      const interventionResult = await API.addIntervention(
-        selectedBeneficiary.id,
-        interventionData,
+      const interventionResult = await dispatch(
+        addIntervention({
+          beneficiaryId: selectedBeneficiary.id,
+          ...interventionData,
+        }),
       );
 
-      console.log('Intervention saved successfully:', interventionResult);
-      Alert.alert('Saved', 'Intervention recorded successfully.');
-      navigation.goBack();
+      // Show thank you popup if coming from flow
+      if (fromFlow) {
+        setShowThankYou(true);
+      } else {
+        Alert.alert('Saved', 'Intervention recorded successfully.');
+        navigation.goBack();
+      }
     } catch (e) {
       console.error('Intervention save error:', e);
       const errorMessage = e.data?.error || e.message || 'Unknown error';
@@ -275,100 +332,193 @@ const Interventions = ({route, navigation}) => {
           Doctor: {item.doctor_name}
         </Text>
       )}
+
+      {/* Display screening data if available */}
+      {item.latest_hemoglobin && (
+        <View style={styles.screeningDataContainer}>
+          <Text style={styles.screeningDataTitle}>Latest Screening:</Text>
+          <View style={styles.screeningDataRow}>
+            <Text style={styles.screeningDataLabel}>Hb:</Text>
+            <Text style={styles.screeningDataValue}>
+              {item.latest_hemoglobin || 'N/A'} g/dL
+            </Text>
+            <Text style={styles.screeningDataLabel}>Anemia:</Text>
+            <Text style={styles.screeningDataValue}>
+              {item.latest_anemia_category || 'N/A'}
+            </Text>
+          </View>
+          {item.screening_notes && (
+            <Text style={styles.screeningSymptoms}>
+              Symptoms: {item.screening_notes}
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Display intervention data if available */}
+      {item.intervention_id && (
+        <View style={styles.interventionDataContainer}>
+          <Text style={styles.interventionDataTitle}>Latest Intervention:</Text>
+          <View style={styles.interventionDataRow}>
+            <Text style={styles.interventionDataLabel}>IFA:</Text>
+            <Text style={styles.interventionDataValue}>
+              {item.intervention_ifa_yes
+                ? `Yes (${item.intervention_ifa_quantity || 0})`
+                : 'No'}
+            </Text>
+            <Text style={styles.interventionDataLabel}>Calcium:</Text>
+            <Text style={styles.interventionDataValue}>
+              {item.intervention_calcium_yes
+                ? `Yes (${item.intervention_calcium_quantity || 0})`
+                : 'No'}
+            </Text>
+          </View>
+          <View style={styles.interventionDataRow}>
+            <Text style={styles.interventionDataLabel}>Deworm:</Text>
+            <Text style={styles.interventionDataValue}>
+              {item.intervention_deworm_yes
+                ? `Yes (${item.intervention_deworming_date || 'Date N/A'})`
+                : 'No'}
+            </Text>
+            <Text style={styles.interventionDataLabel}>Referral:</Text>
+            <Text style={styles.interventionDataValue}>
+              {item.intervention_referral_yes
+                ? `Yes (${
+                    item.intervention_referral_facility || 'Facility N/A'
+                  })`
+                : 'No'}
+            </Text>
+          </View>
+          {item.intervention_therapeutic_notes && (
+            <Text style={styles.interventionNotes}>
+              Therapeutic: {item.intervention_therapeutic_notes}
+            </Text>
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 
   return (
     <View style={styles.screen}>
+      <NetworkStatus />
       <Header
-        title="Interventions"
+        title="Medical Interventions"
         variant="back"
         onBackPress={() => navigation.goBack()}
+        rightIconName="pill"
       />
+
+      <ProgressIndicator currentStep={3} totalSteps={3} />
 
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={{paddingBottom: spacing.xl}}>
-        {/* Header Section */}
-        <View style={styles.headerSection}>
-          <View style={styles.headerIconContainer}>
-            <Icon name="pill" size={28} color={colors.primary} />
-          </View>
-          <Text style={styles.headerTitle}>Medical Interventions</Text>
-          <Text style={styles.headerSubtitle}>
-            Record treatment and medication details
-          </Text>
-        </View>
-
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Intervention Details</Text>
 
-          {/* Beneficiary Search */}
-          <View style={styles.fieldBlock}>
-            <View style={styles.fieldHeader}>
-              <Icon name="account-search" size={20} color={colors.primary} />
-            <Text style={styles.label}>Search Beneficiary</Text>
-            </View>
-            <View style={styles.inputContainer}>
-              <Icon
-                name="magnify"
-                size={18}
-                color={colors.textSecondary}
-                style={styles.inputIcon}
-              />
-            <Input
-              placeholder="Enter name, ID, phone, or doctor name..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-                style={[styles.searchInput, errStyle('beneficiary')]}
-            />
-            </View>
-            {errText('beneficiary')}
-            
-            {showSearchResults && (
-              <View style={styles.searchResultsContainer}>
-                {isSearching ? (
-                  <View style={styles.searchLoading}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.searchLoadingText}>Searching...</Text>
-                  </View>
-                ) : searchResults.length > 0 ? (
-                  <FlatList
-                    data={searchResults}
-                    renderItem={renderSearchResult}
-                    keyExtractor={item => item.id.toString()}
-                    style={styles.searchResultsList}
-                    nestedScrollEnabled
+          {/* Beneficiary Info - Show search only if not from flow */}
+          {!fromFlow ? (
+            <>
+              {/* Beneficiary Search */}
+              <View style={styles.fieldBlock}>
+                <View style={styles.fieldHeader}>
+                  <Icon
+                    name="account-search"
+                    size={20}
+                    color={colors.primary}
                   />
-                ) : (
-                  <Text style={styles.noResultsText}>
-                    No beneficiaries found
+                  <Text style={styles.label}>Search Beneficiary</Text>
+                </View>
+                <View style={styles.inputContainer}>
+                  <Icon
+                    name="magnify"
+                    size={18}
+                    color={colors.textSecondary}
+                    style={styles.inputIcon}
+                  />
+                  <Input
+                    placeholder="Enter name, ID, phone, or doctor name..."
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    style={[styles.searchInput, errStyle('beneficiary')]}
+                  />
+                </View>
+                {errText('beneficiary')}
+
+                {showSearchResults && (
+                  <View style={styles.searchResultsContainer}>
+                    {isSearching ? (
+                      <View style={styles.searchLoading}>
+                        <ActivityIndicator
+                          size="small"
+                          color={colors.primary}
+                        />
+                        <Text style={styles.searchLoadingText}>
+                          Searching...
+                        </Text>
+                      </View>
+                    ) : searchResults.length > 0 ? (
+                      <FlatList
+                        data={searchResults}
+                        renderItem={renderSearchResult}
+                        keyExtractor={item => item.id.toString()}
+                        style={styles.searchResultsList}
+                        nestedScrollEnabled
+                      />
+                    ) : (
+                      <Text style={styles.noResultsText}>
+                        No beneficiaries found
+                      </Text>
+                    )}
+                  </View>
+                )}
+              </View>
+
+              {/* Selected Beneficiary Info */}
+              {selectedBeneficiary && (
+                <View style={styles.selectedBeneficiaryContainer}>
+                  <Text style={styles.selectedBeneficiaryTitle}>
+                    Selected Beneficiary:
+                  </Text>
+                  <Text style={styles.selectedBeneficiaryName}>
+                    {selectedBeneficiary.name}
+                  </Text>
+                  <Text style={styles.selectedBeneficiaryDetails}>
+                    Short ID: {selectedBeneficiary.short_id || 'N/A'} | ID:{' '}
+                    {selectedBeneficiary.id_number || 'N/A'} | Phone:{' '}
+                    {selectedBeneficiary.phone || 'N/A'}
+                  </Text>
+                  {selectedBeneficiary.doctor_name && (
+                    <Text style={styles.selectedBeneficiaryDoctor}>
+                      Doctor: {selectedBeneficiary.doctor_name}
+                    </Text>
+                  )}
+                </View>
+              )}
+            </>
+          ) : (
+            /* Show beneficiary details directly when coming from flow */
+            selectedBeneficiary && (
+              <View style={styles.selectedBeneficiaryContainer}>
+                <Text style={styles.selectedBeneficiaryTitle}>
+                  Beneficiary Details:
+                </Text>
+                <Text style={styles.selectedBeneficiaryName}>
+                  {selectedBeneficiary.name}
+                </Text>
+                <Text style={styles.selectedBeneficiaryDetails}>
+                  Short ID: {selectedBeneficiary.short_id || 'N/A'} | ID:{' '}
+                  {selectedBeneficiary.id_number || 'N/A'} | Phone:{' '}
+                  {selectedBeneficiary.phone || 'N/A'}
+                </Text>
+                {selectedBeneficiary.doctor_name && (
+                  <Text style={styles.selectedBeneficiaryDoctor}>
+                    Doctor: {selectedBeneficiary.doctor_name}
                   </Text>
                 )}
               </View>
-            )}
-          </View>
-
-          {/* Selected Beneficiary Info */}
-          {selectedBeneficiary && (
-            <View style={styles.selectedBeneficiaryContainer}>
-              <Text style={styles.selectedBeneficiaryTitle}>
-                Selected Beneficiary:
-              </Text>
-              <Text style={styles.selectedBeneficiaryName}>
-                {selectedBeneficiary.name}
-              </Text>
-              <Text style={styles.selectedBeneficiaryDetails}>
-                Short ID: {selectedBeneficiary.short_id || 'N/A'} | ID:{' '}
-                {selectedBeneficiary.id_number || 'N/A'} | Phone:{' '}
-                {selectedBeneficiary.phone || 'N/A'}
-              </Text>
-              {selectedBeneficiary.doctor_name && (
-                <Text style={styles.selectedBeneficiaryDoctor}>
-                  Doctor: {selectedBeneficiary.doctor_name}
-                </Text>
-              )}
-            </View>
+            )
           )}
 
           <YesNoRow
@@ -497,6 +647,29 @@ const Interventions = ({route, navigation}) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <ThankYouPopup
+        visible={showThankYou}
+        onClose={() => setShowThankYou(false)}
+        onComplete={() => {
+          // Reset form and navigate to dashboard
+          setIfaYes('');
+          setIfaQty('');
+          setCalciumYes('');
+          setCalciumQty('');
+          setDewormYes('');
+          setDewormingDate('');
+          setTheraYes('');
+          setTherapeuticNotes('');
+          setRefYes('');
+          setReferral('');
+          setSearchQuery('');
+          setSelectedBeneficiary(null);
+          setShowErrors(false);
+          setErrors({});
+          navigation.navigate('Dashboard');
+        }}
+      />
     </View>
   );
 };
@@ -504,38 +677,11 @@ const Interventions = ({route, navigation}) => {
 const styles = StyleSheet.create({
   screen: {flex: 1, backgroundColor: colors.background},
 
-  // Header Section
-  headerSection: {
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-  headerIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary + '20',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing.md,
-  },
-  headerTitle: {
-    ...typography.subtitle,
-    color: colors.text,
-    fontWeight: typography.weights.semibold,
-    marginBottom: spacing.xs,
-  },
-  headerSubtitle: {
-    ...typography.body,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-
   card: {
     backgroundColor: colors.surface,
     margin: spacing.md,
     paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.horizontal,
     borderRadius: borderRadius.lg,
     ...shadows.md,
   },
@@ -570,7 +716,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: colors.background,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
@@ -595,7 +741,7 @@ const styles = StyleSheet.create({
     marginBottom: GAP - spacing.xs,
     fontSize: 12,
   },
-  
+
   // Search results styles
   searchResultsContainer: {
     backgroundColor: colors.surface,
@@ -609,7 +755,8 @@ const styles = StyleSheet.create({
     maxHeight: 200,
   },
   searchResultItem: {
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -633,7 +780,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
   },
   searchLoadingText: {
     marginLeft: spacing.xs,
@@ -641,7 +789,8 @@ const styles = StyleSheet.create({
   },
   noResultsText: {
     textAlign: 'center',
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     color: colors.textSecondary || '#666',
     fontStyle: 'italic',
   },
@@ -650,7 +799,8 @@ const styles = StyleSheet.create({
   selectedBeneficiaryContainer: {
     backgroundColor: colors.primary + '10',
     borderRadius: 8,
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     marginBottom: GAP,
     borderWidth: 1,
     borderColor: colors.primary + '30',
@@ -693,6 +843,92 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: typography.weights.semibold,
     marginLeft: spacing.sm,
+  },
+
+  // Screening data display styles
+  screeningDataContainer: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  screeningDataTitle: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  screeningDataRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: spacing.xs,
+  },
+  screeningDataLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.medium,
+    marginRight: spacing.xs,
+  },
+  screeningDataValue: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: typography.weights.semibold,
+    marginRight: spacing.md,
+  },
+  screeningSymptoms: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
+    lineHeight: 14,
+  },
+
+  // Intervention data display styles
+  interventionDataContainer: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginTop: spacing.xs,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.secondary || '#4CAF50',
+  },
+  interventionDataTitle: {
+    fontSize: 12,
+    color: colors.secondary || '#4CAF50',
+    fontWeight: typography.weights.semibold,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  interventionDataRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: spacing.xs,
+  },
+  interventionDataLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: typography.weights.medium,
+    marginRight: spacing.xs,
+  },
+  interventionDataValue: {
+    fontSize: 12,
+    color: colors.text,
+    fontWeight: typography.weights.semibold,
+    marginRight: spacing.md,
+  },
+  interventionNotes: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
+    lineHeight: 14,
   },
 });
 

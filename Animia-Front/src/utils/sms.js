@@ -73,7 +73,7 @@ export async function sendDirectSMSNative(phoneNumber, message) {
     }
   } catch (error) {
     console.error('[Direct SMS] Error:', error);
-    Alert.alert('SMS Error', 'Failed to send SMS: ' + error.message);
+    console.error('[SMS] Failed to send SMS:', error.message);
     return false;
   }
 }
@@ -150,7 +150,7 @@ export async function sendSMS(phoneNumber, message) {
     }
   } catch (error) {
     console.error('[SMS] Error:', error);
-    Alert.alert('Error', 'Failed to open SMS app: ' + error.message);
+    console.error('[SMS] Failed to open SMS app:', error.message);
     return false;
   }
 }
@@ -216,7 +216,7 @@ export async function sendSMSAlternative(phoneNumber, message) {
     }
   } catch (error) {
     console.error('[SMS Alternative] Error:', error);
-    Alert.alert('Error', 'Failed to open SMS app: ' + error.message);
+    console.error('[SMS] Failed to open SMS app:', error.message);
     return false;
   }
 }
@@ -256,7 +256,7 @@ export async function sendBulkSMS(phoneNumbers, message) {
     return true;
   } catch (error) {
     console.error('Bulk SMS error:', error);
-    Alert.alert('Error', 'Failed to send bulk SMS: ' + error.message);
+    console.error('[SMS] Failed to send bulk SMS:', error.message);
     return false;
   }
 }
@@ -349,7 +349,7 @@ export async function sendPermissionFreeSMS(phoneNumber, message) {
     return success;
   } catch (error) {
     console.error('[Permission-Free SMS] Error:', error);
-    Alert.alert('SMS Error', 'Failed to open SMS app: ' + error.message);
+    console.error('[SMS] Failed to open SMS app:', error.message);
     return false;
   }
 }
@@ -386,7 +386,7 @@ export async function sendSmartSMS(phoneNumber, message, preferDirect = true) {
     // return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('[Smart SMS] Error:', error);
-    Alert.alert('SMS Error', 'Failed to send SMS: ' + error.message);
+    console.error('[SMS] Failed to send SMS:', error.message);
     return false;
   }
 }
@@ -458,7 +458,7 @@ export async function sendSmartBulkSMS(
     return true;
   } catch (error) {
     console.error('Smart Bulk SMS error:', error);
-    Alert.alert('Error', 'Failed to send bulk SMS: ' + error.message);
+    console.error('[SMS] Failed to send bulk SMS:', error.message);
     return false;
   }
 }

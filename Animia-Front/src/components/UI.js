@@ -19,12 +19,14 @@ export const PrimaryButton = ({ label, onPress }) => (
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.lg,
     backgroundColor: colors.background,
   },
   primaryBtn: {
     backgroundColor: colors.primaryMid,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: 12,
     alignItems: 'center',
   },

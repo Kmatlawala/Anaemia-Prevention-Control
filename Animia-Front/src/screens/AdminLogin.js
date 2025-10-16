@@ -100,9 +100,6 @@ const AdminLogin = ({navigation}) => {
       Alert.alert('Welcome', 'Admin account created successfully!');
       setSetupMode(false); // Exit setup mode after successful registration
     } catch (e) {
-      console.log('Registration error:', e);
-
-      // Handle network/server errors first
       if (e?.status === 0 || e?.data?.includes('Network error')) {
         Alert.alert(
           'Connection Error',
@@ -148,9 +145,6 @@ const AdminLogin = ({navigation}) => {
       Alert.alert('Welcome', 'Signed in as Admin');
       navigation.navigate('Dashboard');
     } catch (e) {
-      console.log('Login error:', e);
-
-      // Handle network/server errors first
       if (e?.status === 0 || e?.data?.includes('Network error')) {
         Alert.alert(
           'Connection Error',
@@ -217,8 +211,8 @@ const AdminLogin = ({navigation}) => {
     <View style={styles.screen}>
       <Header
         title="Admin Login"
-        variant="back"
-        onBackPress={() => navigation.navigate('RoleSelect')}
+        variant="none"
+        // onBackPress={() => navigation.navigate('RoleSelect')} // COMMENTED OUT - No back navigation
       />
 
       <ScrollView
@@ -448,7 +442,7 @@ const styles = StyleSheet.create({
   // Welcome Header
   welcomeHeader: {
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
     paddingVertical: spacing.xl,
   },
   iconContainer: {
@@ -479,8 +473,9 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    marginHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.lg,
+    marginHorizontal: spacing.horizontal,
     marginBottom: spacing.md,
     ...shadows.md,
   },
@@ -492,7 +487,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     backgroundColor: colors.background,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
@@ -510,7 +505,7 @@ const styles = StyleSheet.create({
   btn: {
     backgroundColor: colors.primary,
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.horizontal,
     borderRadius: borderRadius.md,
     alignItems: 'center',
     marginTop: spacing.md,
@@ -547,7 +542,7 @@ const styles = StyleSheet.create({
 
   // Bottom Container
   bottomContainer: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal,
     marginTop: spacing.sm,
   },
 

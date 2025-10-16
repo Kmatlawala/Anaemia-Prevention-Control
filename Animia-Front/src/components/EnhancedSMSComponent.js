@@ -1,23 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
-import { 
-  sendSMSWithStorage, 
+import React, {useState, useEffect} from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import {
+  sendSMSWithStorage,
   sendBulkSMSWithStorage,
   sendRegistrationSMSWithStorage,
   sendFollowUpSMSWithStorage,
   sendScreeningReminderSMSWithStorage,
   getBeneficiarySMSHistory,
-  getSMSStatistics 
+  getSMSStatistics,
 } from '../utils/enhancedSMS';
 
 /**
  * Enhanced SMS Component with Data Storage
  * Supports sending SMS to beneficiary contacts and storing data
  */
-const EnhancedSMSComponent = ({ 
-  beneficiaries = [], 
+const EnhancedSMSComponent = ({
+  beneficiaries = [],
   onSMSComplete = () => {},
-  style = {} 
+  style = {},
 }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [message, setMessage] = useState('');
@@ -42,7 +51,7 @@ const EnhancedSMSComponent = ({
   /**
    * Send SMS to single beneficiary with all contacts
    */
-  const handleSendToBeneficiary = async (beneficiary) => {
+  const handleSendToBeneficiary = async beneficiary => {
     if (!message.trim()) {
       Alert.alert('Error', 'Please enter a message');
       return;
@@ -51,25 +60,32 @@ const EnhancedSMSComponent = ({
     setIsLoading(true);
     try {
       const result = await sendSMSWithStorage(
-        beneficiary, 
-        message, 
-        smsType, 
-        sendMethod === 'direct'
+        beneficiary,
+        message,
+        smsType,
+        sendMethod === 'direct',
       );
 
       Alert.alert(
         'SMS Results',
         `Sent to ${result.summary.successfulSMS}/${result.summary.totalContacts} contacts\n` +
-        `Storage: ${result.summary.successfulStorage} successful\n` +
-        `Failed: ${result.summary.failedSMS} SMS, ${result.summary.failedStorage} storage`,
-        [{ text: 'OK' }]
+          `Storage: ${result.summary.successfulStorage} successful\n` +
+          `Failed: ${result.summary.failedSMS} SMS, ${result.summary.failedStorage} storage`,
+        [{text: 'OK'}],
       );
 
-      onSMSComplete({ type: 'beneficiary', beneficiary: beneficiary.name, result });
+      onSMSComplete({
+        type: 'beneficiary',
+        beneficiary: beneficiary.name,
+        result,
+      });
       loadSMSStatistics(); // Refresh stats
     } catch (error) {
       console.error('SMS send error:', error);
-      Alert.alert('Error', 'Failed to send SMS: ' + error.message);
+      console.error(
+        '[EnhancedSMSComponent] Failed to send SMS:',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -92,25 +108,30 @@ const EnhancedSMSComponent = ({
     setIsLoading(true);
     try {
       const result = await sendBulkSMSWithStorage(
-        beneficiaries, 
-        message, 
-        smsType, 
-        sendMethod === 'direct'
+        beneficiaries,
+        message,
+        smsType,
+        sendMethod === 'direct',
       );
 
       Alert.alert(
         'Bulk SMS Results',
         `Sent to ${result.summary.successfulSMS}/${result.summary.totalBeneficiaries} beneficiaries\n` +
-        `Storage: ${result.summary.successfulStorage} successful\n` +
-        `Bulk Storage: ${result.summary.bulkStorageSuccess ? 'Success' : 'Failed'}`,
-        [{ text: 'OK' }]
+          `Storage: ${result.summary.successfulStorage} successful\n` +
+          `Bulk Storage: ${
+            result.summary.bulkStorageSuccess ? 'Success' : 'Failed'
+          }`,
+        [{text: 'OK'}],
       );
 
-      onSMSComplete({ type: 'bulk', count: beneficiaries.length, result });
+      onSMSComplete({type: 'bulk', count: beneficiaries.length, result});
       loadSMSStatistics(); // Refresh stats
     } catch (error) {
       console.error('Bulk SMS error:', error);
-      Alert.alert('Error', 'Failed to send bulk SMS: ' + error.message);
+      console.error(
+        '[EnhancedSMSComponent] Failed to send bulk SMS:',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -119,25 +140,32 @@ const EnhancedSMSComponent = ({
   /**
    * Send registration SMS
    */
-  const handleRegistrationSMS = async (beneficiary) => {
+  const handleRegistrationSMS = async beneficiary => {
     setIsLoading(true);
     try {
       const result = await sendRegistrationSMSWithStorage(
-        beneficiary, 
-        sendMethod === 'direct'
+        beneficiary,
+        sendMethod === 'direct',
       );
 
       Alert.alert(
         'Registration SMS',
         `Sent to ${result.summary.successfulSMS}/${result.summary.totalContacts} contacts`,
-        [{ text: 'OK' }]
+        [{text: 'OK'}],
       );
 
-      onSMSComplete({ type: 'registration', beneficiary: beneficiary.name, result });
+      onSMSComplete({
+        type: 'registration',
+        beneficiary: beneficiary.name,
+        result,
+      });
       loadSMSStatistics();
     } catch (error) {
       console.error('Registration SMS error:', error);
-      Alert.alert('Error', 'Failed to send registration SMS: ' + error.message);
+      console.error(
+        '[EnhancedSMSComponent] Failed to send registration SMS:',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -150,22 +178,25 @@ const EnhancedSMSComponent = ({
     setIsLoading(true);
     try {
       const result = await sendFollowUpSMSWithStorage(
-        beneficiary, 
-        followUp, 
-        sendMethod === 'direct'
+        beneficiary,
+        followUp,
+        sendMethod === 'direct',
       );
 
       Alert.alert(
         'Follow-up SMS',
         `Sent to ${result.summary.successfulSMS}/${result.summary.totalContacts} contacts`,
-        [{ text: 'OK' }]
+        [{text: 'OK'}],
       );
 
-      onSMSComplete({ type: 'follow_up', beneficiary: beneficiary.name, result });
+      onSMSComplete({type: 'follow_up', beneficiary: beneficiary.name, result});
       loadSMSStatistics();
     } catch (error) {
       console.error('Follow-up SMS error:', error);
-      Alert.alert('Error', 'Failed to send follow-up SMS: ' + error.message);
+      console.error(
+        '[EnhancedSMSComponent] Failed to send follow-up SMS:',
+        error.message,
+      );
     } finally {
       setIsLoading(false);
     }
@@ -174,15 +205,21 @@ const EnhancedSMSComponent = ({
   return (
     <ScrollView style={[styles.container, style]}>
       <Text style={styles.title}>Enhanced SMS with Storage</Text>
-      
+
       {/* SMS Statistics */}
       {smsStats && (
         <View style={styles.statsContainer}>
           <Text style={styles.statsTitle}>SMS Statistics</Text>
-          <Text style={styles.statsText}>Total SMS: {smsStats.total_sms_sent}</Text>
-          <Text style={styles.statsText}>Successful: {smsStats.successful_sms}</Text>
+          <Text style={styles.statsText}>
+            Total SMS: {smsStats.total_sms_sent}
+          </Text>
+          <Text style={styles.statsText}>
+            Successful: {smsStats.successful_sms}
+          </Text>
           <Text style={styles.statsText}>Failed: {smsStats.failed_sms}</Text>
-          <Text style={styles.statsText}>Beneficiaries: {smsStats.beneficiaries_contacted}</Text>
+          <Text style={styles.statsText}>
+            Beneficiaries: {smsStats.beneficiaries_contacted}
+          </Text>
         </View>
       )}
 
@@ -191,18 +228,30 @@ const EnhancedSMSComponent = ({
         <Text style={styles.label}>Send Method:</Text>
         <View style={styles.methodButtons}>
           <TouchableOpacity
-            style={[styles.methodButton, sendMethod === 'direct' && styles.methodButtonActive]}
-            onPress={() => setSendMethod('direct')}
-          >
-            <Text style={[styles.methodButtonText, sendMethod === 'direct' && styles.methodButtonTextActive]}>
+            style={[
+              styles.methodButton,
+              sendMethod === 'direct' && styles.methodButtonActive,
+            ]}
+            onPress={() => setSendMethod('direct')}>
+            <Text
+              style={[
+                styles.methodButtonText,
+                sendMethod === 'direct' && styles.methodButtonTextActive,
+              ]}>
               Direct SMS
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.methodButton, sendMethod === 'app' && styles.methodButtonActive]}
-            onPress={() => setSendMethod('app')}
-          >
-            <Text style={[styles.methodButtonText, sendMethod === 'app' && styles.methodButtonTextActive]}>
+            style={[
+              styles.methodButton,
+              sendMethod === 'app' && styles.methodButtonActive,
+            ]}
+            onPress={() => setSendMethod('app')}>
+            <Text
+              style={[
+                styles.methodButtonText,
+                sendMethod === 'app' && styles.methodButtonTextActive,
+              ]}>
               SMS App
             </Text>
           </TouchableOpacity>
@@ -213,13 +262,25 @@ const EnhancedSMSComponent = ({
       <View style={styles.typeContainer}>
         <Text style={styles.label}>SMS Type:</Text>
         <View style={styles.typeButtons}>
-          {['general', 'registration', 'follow_up', 'screening', 'intervention'].map(type => (
+          {[
+            'general',
+            'registration',
+            'follow_up',
+            'screening',
+            'intervention',
+          ].map(type => (
             <TouchableOpacity
               key={type}
-              style={[styles.typeButton, smsType === type && styles.typeButtonActive]}
-              onPress={() => setSmsType(type)}
-            >
-              <Text style={[styles.typeButtonText, smsType === type && styles.typeButtonTextActive]}>
+              style={[
+                styles.typeButton,
+                smsType === type && styles.typeButtonActive,
+              ]}
+              onPress={() => setSmsType(type)}>
+              <Text
+                style={[
+                  styles.typeButtonText,
+                  smsType === type && styles.typeButtonTextActive,
+                ]}>
                 {type.charAt(0).toUpperCase() + type.slice(1)}
               </Text>
             </TouchableOpacity>
@@ -247,10 +308,11 @@ const EnhancedSMSComponent = ({
           <TouchableOpacity
             style={[styles.button, styles.bulkButton]}
             onPress={handleSendBulkSMS}
-            disabled={isLoading}
-          >
+            disabled={isLoading}>
             <Text style={styles.buttonText}>
-              {isLoading ? 'Sending...' : `Send to All (${beneficiaries.length})`}
+              {isLoading
+                ? 'Sending...'
+                : `Send to All (${beneficiaries.length})`}
             </Text>
           </TouchableOpacity>
         )}
@@ -259,8 +321,7 @@ const EnhancedSMSComponent = ({
           <TouchableOpacity
             style={[styles.button, styles.registrationButton]}
             onPress={() => handleRegistrationSMS(beneficiaries[0])}
-            disabled={isLoading}
-          >
+            disabled={isLoading}>
             <Text style={styles.buttonText}>
               {isLoading ? 'Sending...' : 'Send Registration SMS'}
             </Text>
@@ -275,11 +336,8 @@ const EnhancedSMSComponent = ({
           <TouchableOpacity
             style={[styles.button, styles.beneficiaryButton]}
             onPress={() => handleSendToBeneficiary(beneficiary)}
-            disabled={isLoading}
-          >
-            <Text style={styles.buttonText}>
-              Send to {beneficiary.name}
-            </Text>
+            disabled={isLoading}>
+            <Text style={styles.buttonText}>Send to {beneficiary.name}</Text>
           </TouchableOpacity>
         </View>
       ))}
@@ -292,7 +350,8 @@ const EnhancedSMSComponent = ({
       )}
 
       <Text style={styles.infoText}>
-        This component sends SMS to all 3 contact numbers of beneficiaries and stores the data in beneficiary and screening tables.
+        This component sends SMS to all 3 contact numbers of beneficiaries and
+        stores the data in beneficiary and screening tables.
       </Text>
     </ScrollView>
   );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {useState} from 'react';
 import {
   View,
   Text,
@@ -11,28 +11,28 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import { colors, spacing, typography } from '../theme/theme';
-import { 
-  sendSMSToBeneficiary, 
+import {colors, spacing, typography} from '../theme/theme';
+import {
+  sendSMSToBeneficiary,
   sendSMS,
   sendNativeSMS,
   sendSMSApp,
-  formatPhoneNumber, 
-  isValidPhoneNumber 
+  formatPhoneNumber,
+  isValidPhoneNumber,
 } from '../utils/fixedSMS';
-import { NativeModules } from 'react-native';
+import {NativeModules} from 'react-native';
 
-const { SMSModule } = NativeModules;
+const {SMSModule} = NativeModules;
 
 /**
  * Clean SMS Component
  * Simple and reliable SMS sending
  */
-const CleanSMSComponent = ({ 
-  visible, 
-  onClose, 
+const CleanSMSComponent = ({
+  visible,
+  onClose,
   beneficiary = null,
-  initialMessage = '' 
+  initialMessage = '',
 }) => {
   const [message, setMessage] = useState(initialMessage);
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -44,24 +44,27 @@ const CleanSMSComponent = ({
   // Get all contacts from beneficiary
   const getBeneficiaryContacts = () => {
     if (!beneficiary) return [];
-    
+
     const contacts = [];
     if (beneficiary.phone && isValidPhoneNumber(beneficiary.phone)) {
       contacts.push({
         type: 'Primary Phone',
-        number: formatPhoneNumber(beneficiary.phone)
+        number: formatPhoneNumber(beneficiary.phone),
       });
     }
     if (beneficiary.alt_phone && isValidPhoneNumber(beneficiary.alt_phone)) {
       contacts.push({
         type: 'Alternative Phone',
-        number: formatPhoneNumber(beneficiary.alt_phone)
+        number: formatPhoneNumber(beneficiary.alt_phone),
       });
     }
-    if (beneficiary.doctor_phone && isValidPhoneNumber(beneficiary.doctor_phone)) {
+    if (
+      beneficiary.doctor_phone &&
+      isValidPhoneNumber(beneficiary.doctor_phone)
+    ) {
       contacts.push({
         type: 'Doctor Phone',
-        number: formatPhoneNumber(beneficiary.doctor_phone)
+        number: formatPhoneNumber(beneficiary.doctor_phone),
       });
     }
     return contacts;
@@ -79,15 +82,14 @@ const CleanSMSComponent = ({
     try {
       if (sendToAllContacts && beneficiary) {
         // Send to all beneficiary contacts
-        console.log('[CleanSMSComponent] Sending to all contacts using method:', smsMethod);
         const result = await sendSMSToBeneficiary(beneficiary, message);
         setSmsResults(result.results);
-        
+
         const method = SMSModule ? 'Native SMS' : 'SMS App';
         Alert.alert(
           'SMS Results',
           `${method} sent to ${result.summary.successful}/${result.summary.total} contacts`,
-          [{ text: 'OK', onPress: handleClose }]
+          [{text: 'OK', onPress: handleClose}],
         );
       } else {
         // Send to single phone number
@@ -101,11 +103,9 @@ const CleanSMSComponent = ({
           return;
         }
 
-        console.log('[CleanSMSComponent] Sending to single number using method:', smsMethod);
-        
         let success = false;
         let method = '';
-        
+
         if (smsMethod === 'native' && SMSModule) {
           success = await sendNativeSMS(phoneNumber, message);
           method = 'Native SMS';
@@ -117,13 +117,18 @@ const CleanSMSComponent = ({
           success = await sendSMS(phoneNumber, message);
           method = SMSModule ? 'Native SMS' : 'SMS App';
         }
-        
-        setSmsResults([{
-          contact: { type: 'Single Number', number: formatPhoneNumber(phoneNumber) },
-          success: success,
-          method: method
-        }]);
-        
+
+        setSmsResults([
+          {
+            contact: {
+              type: 'Single Number',
+              number: formatPhoneNumber(phoneNumber),
+            },
+            success: success,
+            method: method,
+          },
+        ]);
+
         if (success) {
           Alert.alert('Success', `${method} sent successfully!`);
           handleClose();
@@ -133,7 +138,7 @@ const CleanSMSComponent = ({
       }
     } catch (error) {
       console.error('[CleanSMSComponent] Error:', error);
-      Alert.alert('Error', 'Failed to send SMS: ' + error.message);
+      console.error('[CleanSMSComponent] Failed to send SMS:', error.message);
     } finally {
       setSending(false);
     }
@@ -155,8 +160,7 @@ const CleanSMSComponent = ({
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={handleClose}
-    >
+      onRequestClose={handleClose}>
       <View style={styles.overlay}>
         <View style={styles.modal}>
           <View style={styles.header}>
@@ -171,53 +175,95 @@ const CleanSMSComponent = ({
             {beneficiary && (
               <View style={styles.beneficiaryInfo}>
                 <Text style={styles.beneficiaryName}>{beneficiary.name}</Text>
-                <Text style={styles.beneficiaryId}>ID: {beneficiary.short_id || beneficiary.unique_id}</Text>
+                <Text style={styles.beneficiaryId}>
+                  ID: {beneficiary.short_id || beneficiary.unique_id}
+                </Text>
               </View>
             )}
 
             {/* SMS Method Selection */}
             <View style={styles.optionsContainer}>
               <Text style={styles.sectionTitle}>SMS Method:</Text>
-              
+
               <TouchableOpacity
-                style={[styles.optionButton, smsMethod === 'native' && styles.optionButtonSelected]}
+                style={[
+                  styles.optionButton,
+                  smsMethod === 'native' && styles.optionButtonSelected,
+                ]}
                 onPress={() => setSmsMethod('native')}
-                disabled={!SMSModule}
-              >
-                <Icon 
-                  name={smsMethod === 'native' ? "checkbox-marked" : "checkbox-blank-outline"} 
-                  size={20} 
-                  color={smsMethod === 'native' ? colors.primary : colors.textSecondary} 
+                disabled={!SMSModule}>
+                <Icon
+                  name={
+                    smsMethod === 'native'
+                      ? 'checkbox-marked'
+                      : 'checkbox-blank-outline'
+                  }
+                  size={20}
+                  color={
+                    smsMethod === 'native'
+                      ? colors.primary
+                      : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.optionText, smsMethod === 'native' && styles.optionTextSelected]}>
+                <Text
+                  style={[
+                    styles.optionText,
+                    smsMethod === 'native' && styles.optionTextSelected,
+                  ]}>
                   Native SMS {!SMSModule && '(Not Available)'}
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.optionButton, smsMethod === 'app' && styles.optionButtonSelected]}
-                onPress={() => setSmsMethod('app')}
-              >
-                <Icon 
-                  name={smsMethod === 'app' ? "checkbox-marked" : "checkbox-blank-outline"} 
-                  size={20} 
-                  color={smsMethod === 'app' ? colors.primary : colors.textSecondary} 
+                style={[
+                  styles.optionButton,
+                  smsMethod === 'app' && styles.optionButtonSelected,
+                ]}
+                onPress={() => setSmsMethod('app')}>
+                <Icon
+                  name={
+                    smsMethod === 'app'
+                      ? 'checkbox-marked'
+                      : 'checkbox-blank-outline'
+                  }
+                  size={20}
+                  color={
+                    smsMethod === 'app' ? colors.primary : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.optionText, smsMethod === 'app' && styles.optionTextSelected]}>
+                <Text
+                  style={[
+                    styles.optionText,
+                    smsMethod === 'app' && styles.optionTextSelected,
+                  ]}>
                   SMS App
                 </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.optionButton, smsMethod === 'smart' && styles.optionButtonSelected]}
-                onPress={() => setSmsMethod('smart')}
-              >
-                <Icon 
-                  name={smsMethod === 'smart' ? "checkbox-marked" : "checkbox-blank-outline"} 
-                  size={20} 
-                  color={smsMethod === 'smart' ? colors.primary : colors.textSecondary} 
+                style={[
+                  styles.optionButton,
+                  smsMethod === 'smart' && styles.optionButtonSelected,
+                ]}
+                onPress={() => setSmsMethod('smart')}>
+                <Icon
+                  name={
+                    smsMethod === 'smart'
+                      ? 'checkbox-marked'
+                      : 'checkbox-blank-outline'
+                  }
+                  size={20}
+                  color={
+                    smsMethod === 'smart'
+                      ? colors.primary
+                      : colors.textSecondary
+                  }
                 />
-                <Text style={[styles.optionText, smsMethod === 'smart' && styles.optionTextSelected]}>
+                <Text
+                  style={[
+                    styles.optionText,
+                    smsMethod === 'smart' && styles.optionTextSelected,
+                  ]}>
                   Smart (Native + Fallback)
                 </Text>
               </TouchableOpacity>
@@ -227,31 +273,55 @@ const CleanSMSComponent = ({
             {beneficiary && beneficiaryContacts.length > 0 && (
               <View style={styles.optionsContainer}>
                 <Text style={styles.sectionTitle}>Send Options:</Text>
-                
+
                 <TouchableOpacity
-                  style={[styles.optionButton, sendToAllContacts && styles.optionButtonSelected]}
-                  onPress={() => setSendToAllContacts(true)}
-                >
-                  <Icon 
-                    name={sendToAllContacts ? "checkbox-marked" : "checkbox-blank-outline"} 
-                    size={20} 
-                    color={sendToAllContacts ? colors.primary : colors.textSecondary} 
+                  style={[
+                    styles.optionButton,
+                    sendToAllContacts && styles.optionButtonSelected,
+                  ]}
+                  onPress={() => setSendToAllContacts(true)}>
+                  <Icon
+                    name={
+                      sendToAllContacts
+                        ? 'checkbox-marked'
+                        : 'checkbox-blank-outline'
+                    }
+                    size={20}
+                    color={
+                      sendToAllContacts ? colors.primary : colors.textSecondary
+                    }
                   />
-                  <Text style={[styles.optionText, sendToAllContacts && styles.optionTextSelected]}>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      sendToAllContacts && styles.optionTextSelected,
+                    ]}>
                     Send to All Contacts ({beneficiaryContacts.length})
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.optionButton, !sendToAllContacts && styles.optionButtonSelected]}
-                  onPress={() => setSendToAllContacts(false)}
-                >
-                  <Icon 
-                    name={!sendToAllContacts ? "checkbox-marked" : "checkbox-blank-outline"} 
-                    size={20} 
-                    color={!sendToAllContacts ? colors.primary : colors.textSecondary} 
+                  style={[
+                    styles.optionButton,
+                    !sendToAllContacts && styles.optionButtonSelected,
+                  ]}
+                  onPress={() => setSendToAllContacts(false)}>
+                  <Icon
+                    name={
+                      !sendToAllContacts
+                        ? 'checkbox-marked'
+                        : 'checkbox-blank-outline'
+                    }
+                    size={20}
+                    color={
+                      !sendToAllContacts ? colors.primary : colors.textSecondary
+                    }
                   />
-                  <Text style={[styles.optionText, !sendToAllContacts && styles.optionTextSelected]}>
+                  <Text
+                    style={[
+                      styles.optionText,
+                      !sendToAllContacts && styles.optionTextSelected,
+                    ]}>
                     Send to Single Number
                   </Text>
                 </TouchableOpacity>
@@ -309,13 +379,14 @@ const CleanSMSComponent = ({
                 <Text style={styles.sectionTitle}>SMS Results:</Text>
                 {smsResults.map((result, index) => (
                   <View key={index} style={styles.resultItem}>
-                    <Icon 
-                      name={result.success ? "check-circle" : "close-circle"} 
-                      size={20} 
-                      color={result.success ? '#4CAF50' : '#F44336'} 
+                    <Icon
+                      name={result.success ? 'check-circle' : 'close-circle'}
+                      size={20}
+                      color={result.success ? '#4CAF50' : '#F44336'}
                     />
                     <Text style={styles.resultText}>
-                      {result.contact.type}: {result.success ? 'Success' : 'Failed'}
+                      {result.contact.type}:{' '}
+                      {result.success ? 'Success' : 'Failed'}
                     </Text>
                     {result.method && (
                       <Text style={styles.resultMethod}>
@@ -331,16 +402,18 @@ const CleanSMSComponent = ({
           <View style={styles.footer}>
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
-              onPress={handleClose}
-            >
+              onPress={handleClose}>
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity
-              style={[styles.button, styles.sendButton, sending && styles.sendButtonDisabled]}
+              style={[
+                styles.button,
+                styles.sendButton,
+                sending && styles.sendButtonDisabled,
+              ]}
               onPress={handleSendSMS}
-              disabled={sending}
-            >
+              disabled={sending}>
               {sending ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
@@ -370,7 +443,7 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     elevation: 5,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 4,
   },
@@ -378,7 +451,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -392,12 +466,14 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     maxHeight: 400,
   },
   beneficiaryInfo: {
     backgroundColor: colors.surface,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: 8,
     marginBottom: spacing.md,
   },
@@ -423,7 +499,8 @@ const styles = StyleSheet.create({
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     borderRadius: 8,
     marginBottom: spacing.xs,
     backgroundColor: colors.surface,
@@ -446,7 +523,8 @@ const styles = StyleSheet.create({
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
     borderRadius: 8,
     marginBottom: spacing.xs,
@@ -469,7 +547,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     fontSize: typography.sizes.md,
     color: colors.text,
     backgroundColor: colors.surface,
@@ -486,14 +565,16 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     marginTop: spacing.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: 8,
   },
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.sm,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.sm,
     marginBottom: spacing.xs,
   },
   resultText: {
@@ -509,7 +590,8 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: spacing.sm,

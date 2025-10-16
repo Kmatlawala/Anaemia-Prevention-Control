@@ -171,7 +171,8 @@ const styles = StyleSheet.create({
   },
   tileContainer: {
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -197,7 +198,8 @@ const styles = StyleSheet.create({
   },
   gradientTile: {
     borderRadius: borderRadius.md,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',

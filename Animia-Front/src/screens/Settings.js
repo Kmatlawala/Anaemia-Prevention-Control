@@ -48,13 +48,13 @@ const Settings = ({navigation}) => {
             await clearRole();
             // Dispatch logout action to clear Redux state
             dispatch(logout());
-            // Navigate to role selection
-            navigation.replace('RoleSelect');
+            // AuthNavigator will automatically redirect to AdminLogin
+            // No need to manually navigate
           } catch (error) {
             console.error('Sign out error:', error);
             // Even if there's an error, still try to logout
             dispatch(logout());
-            navigation.replace('RoleSelect');
+            // AuthNavigator will handle the redirect
           }
         },
       },
@@ -93,14 +93,16 @@ const styles = StyleSheet.create({
   cardContainer: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     margin: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
   card: {
     backgroundColor: colors.surface,
-    padding: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingVertical: spacing.md,
     borderRadius: 8,
     marginTop: spacing.sm,
     borderWidth: 1,

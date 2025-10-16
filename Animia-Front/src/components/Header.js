@@ -19,6 +19,10 @@ const Header = ({
   onBellPress,
   onBackPress,
   rightIconName = '',
+  rightIcon2Name = '',
+  onRightIcon2Press,
+  showNotificationBadge = false,
+  role = '',
 }) => {
   const navigation = useNavigation();
   const mode = useMemo(() => {
@@ -50,16 +54,33 @@ const Header = ({
             {title}
           </Text>
 
-          <TouchableOpacity
-            style={styles.side}
-            onPress={
-              onBellPress || (() => navigation.navigate('Notifications'))
-            }
-            android_ripple={{color: '#dde7f6', borderless: true}}>
-            <View style={styles.bellBtn}>
-              <Icon name={rightIconName} size={20} color="#fff" />
-            </View>
-          </TouchableOpacity>
+          <View style={styles.rightIconsContainer}>
+            {rightIcon2Name && (
+              <TouchableOpacity
+                style={styles.side}
+                onPress={onRightIcon2Press}
+                android_ripple={{color: '#dde7f6', borderless: true}}>
+                <View style={styles.infoBtn}>
+                  <Icon name={rightIcon2Name} size={20} color="#fff" />
+                </View>
+              </TouchableOpacity>
+            )}
+
+            {rightIconName &&
+              String(role || '').toLowerCase() !== 'patient' && (
+                <TouchableOpacity
+                  style={styles.side}
+                  onPress={
+                    onBellPress || (() => navigation.navigate('Notifications'))
+                  }
+                  android_ripple={{color: '#dde7f6', borderless: true}}>
+                  <View style={styles.bellBtn}>
+                    <Icon name={rightIconName} size={20} color="#fff" />
+                    {showNotificationBadge && <View style={styles.badge} />}
+                  </View>
+                </TouchableOpacity>
+              )}
+          </View>
         </View>
       ) : (
         <View style={styles.containerBack}>
@@ -71,7 +92,7 @@ const Header = ({
               if (navigation.canGoBack && navigation.canGoBack()) {
                 navigation.goBack();
               } else {
-                navigation.navigate('RoleSelect');
+                navigation.navigate('AdminLogin');
               }
             }}
             style={styles.backTouch}
@@ -83,7 +104,7 @@ const Header = ({
             {title}
           </Text>
 
-          {rightIconName && (
+          {rightIconName && String(role || '').toLowerCase() !== 'patient' && (
             <TouchableOpacity
               style={[styles.side, {width: 44}]}
               onPress={onBellPress}
@@ -112,7 +133,7 @@ const styles = StyleSheet.create({
   // DASHBOARD
   containerDash: {
     height: HEADER_H_DASH,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -125,6 +146,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rightIconsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   bellBtn: {
     width: 44,
     height: 44,
@@ -132,6 +157,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryDark,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
+  },
+  infoBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    backgroundColor: colors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
   },
   titleCenter: {
     ...typography.title,
@@ -144,7 +187,7 @@ const styles = StyleSheet.create({
   // BACK (flex-start)
   containerBack: {
     height: HEADER_H_BACK,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.horizontal, // 16px left/right
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

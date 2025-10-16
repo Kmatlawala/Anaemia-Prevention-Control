@@ -78,29 +78,40 @@ export const colors = {
 };
 
 export const spacing = {
-  xs: isIOS ? 6 : 4,
-  sm: isIOS ? 12 : 8,
-  md: isIOS ? 18 : 16,
-  lg: isIOS ? 28 : 24,
-  xl: isIOS ? 36 : 32,
-  xxl: isIOS ? 52 : 48,
-  // iOS-specific spacing
+  // Standardized spacing with 16px horizontal margins
+  xs: 4,
+  sm: 8,
+  md: 16, // Standard horizontal margin/padding
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+  // iOS-specific spacing (maintaining iOS feel)
   ios: {
     xs: 6,
     sm: 12,
-    md: 18,
-    lg: 28,
-    xl: 36,
-    xxl: 52,
+    md: 16, // Standardized to 16px
+    lg: 24,
+    xl: 32,
+    xxl: 48,
   },
   // Android-specific spacing
   android: {
     xs: 4,
     sm: 8,
-    md: 16,
+    md: 16, // Standardized to 16px
     lg: 24,
     xl: 32,
     xxl: 48,
+  },
+  // Standard horizontal margins for iOS structure
+  horizontal: 16,
+  // Standard vertical spacing
+  vertical: {
+    xs: 4,
+    sm: 8,
+    md: 16,
+    lg: 24,
+    xl: 32,
   },
 };
 

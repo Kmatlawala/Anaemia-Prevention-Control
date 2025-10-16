@@ -2,6 +2,7 @@ import {Alert} from 'react-native';
 import messaging from '@react-native-firebase/messaging';
 import {API_BASE} from '../utils/api';
 import {handleAutoSMS, handleBroadcastSMS} from './autoSMS';
+import {handleNotificationPermissionOnFirstNotification} from './permissionManager';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export async function showLocalNotification(title, body) {
@@ -21,7 +22,12 @@ export async function showLocalNotification(title, body) {
 
 export async function sendPushToSelf(title, body, data = {}) {
   try {
-    console.log('[Notifications] Requesting permission...');
+    console.log('[Notifications] Checking permission...');
+
+    // Handle notification permission on first notification
+    await handleNotificationPermissionOnFirstNotification();
+
+    // Request permission if not already granted
     await messaging().requestPermission();
 
     console.log('[Notifications] Getting FCM token...');
