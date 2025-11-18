@@ -1,31 +1,28 @@
-// src/theme/theme.js
+
 import {Platform, Dimensions} from 'react-native';
 
 const {width: screenWidth, height: screenHeight} = Dimensions.get('window');
 
-// iOS-specific spacing adjustments
 const isIOS = Platform.OS === 'ios';
-const isSmallScreen = screenWidth < 375; // iPhone SE and smaller
-const isLargeScreen = screenWidth > 414; // iPhone Plus and larger
+const isSmallScreen = screenWidth < 375; 
+const isLargeScreen = screenWidth > 414; 
 
 export const colors = {
-  // Primary colors - Modern healthcare theme
+  
   background: '#F8FAFC',
   surface: '#FFFFFF',
-  primary: '#2563EB', // Modern blue
+  primary: '#2563EB', 
   primaryDark: '#1D4ED8',
   primaryLight: '#3B82F6',
-  secondary: '#F59E0B', // Warm accent (saffron like)
-  accent: '#10B981', // Success green
+  secondary: '#F59E0B', 
+  accent: '#10B981', 
   accentLight: '#34D399',
 
-  // Text colors
   text: '#1F2937',
   textSecondary: '#6B7280',
   textLight: '#9CA3AF',
   muted: '#6B7280',
 
-  // Status colors
   success: '#10B981',
   successLight: '#D1FAE5',
   warning: '#F59E0B',
@@ -35,21 +32,18 @@ export const colors = {
   info: '#3B82F6',
   infoLight: '#DBEAFE',
 
-  // UI colors
   border: '#E5E7EB',
   borderLight: '#F3F4F6',
   white: '#FFFFFF',
   black: '#000000',
   placeholder: '#9CA3AF',
 
-  // Gradient colors
   gradientPrimary: ['#2563EB', '#1D4ED8'],
   gradientSecondary: ['#F59E0B', '#D97706'],
   gradientSuccess: ['#10B981', '#059669'],
   gradientWarning: ['#F59E0B', '#D97706'],
   gradientError: ['#EF4444', '#DC2626'],
 
-  // Chart colors
   chartColors: [
     '#2563EB',
     '#10B981',
@@ -63,13 +57,11 @@ export const colors = {
     '#6366F1',
   ],
 
-  // Category specific colors
   pregnant: '#EC4899',
   adolescent: '#3B82F6',
   under5: '#F59E0B',
   wora: '#10B981',
 
-  // Severity colors
   normal: '#10B981',
   mild: '#F59E0B',
   moderate: '#F97316',
@@ -78,34 +70,34 @@ export const colors = {
 };
 
 export const spacing = {
-  // Standardized spacing with 16px horizontal margins
+  
   xs: 4,
   sm: 8,
-  md: 16, // Standard horizontal margin/padding
+  md: 16, 
   lg: 24,
   xl: 32,
   xxl: 48,
-  // iOS-specific spacing (maintaining iOS feel)
+  
   ios: {
     xs: 6,
     sm: 12,
-    md: 16, // Standardized to 16px
+    md: 16, 
     lg: 24,
     xl: 32,
     xxl: 48,
   },
-  // Android-specific spacing
+  
   android: {
     xs: 4,
     sm: 8,
-    md: 16, // Standardized to 16px
+    md: 16, 
     lg: 24,
     xl: 32,
     xxl: 48,
   },
-  // Standard horizontal margins for iOS structure
+  
   horizontal: 16,
-  // Standard vertical spacing
+  
   vertical: {
     xs: 4,
     sm: 8,
@@ -213,7 +205,6 @@ export const animations = {
   },
 };
 
-// Platform-specific utilities
 export const platform = {
   isIOS,
   isAndroid: Platform.OS === 'android',
@@ -222,20 +213,17 @@ export const platform = {
   screenWidth,
   screenHeight,
 
-  // iOS-specific safe area adjustments
   safeArea: {
-    top: isIOS ? 44 : 0, // Status bar height
-    bottom: isIOS ? 34 : 0, // Home indicator height
-    horizontal: isIOS ? 20 : 0, // Side margins
+    top: isIOS ? 44 : 0, 
+    bottom: isIOS ? 34 : 0, 
+    horizontal: isIOS ? 20 : 0, 
   },
 
-  // Platform-specific touch targets
   touchTarget: {
-    minHeight: isIOS ? 44 : 48, // iOS Human Interface Guidelines
+    minHeight: isIOS ? 44 : 48, 
     minWidth: isIOS ? 44 : 48,
   },
 
-  // Platform-specific navigation
   navigation: {
     headerHeight: isIOS ? 44 : 56,
     tabBarHeight: isIOS ? 49 : 56,

@@ -1,4 +1,4 @@
-// src/components/NetworkStatus.js
+
 import React, {useState, useEffect} from 'react';
 import {View, Text, StyleSheet} from 'react-native';
 import {isOnline, addNetworkListener} from '../utils/asyncCache';
@@ -8,14 +8,13 @@ const NetworkStatus = () => {
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
-    // Check initial network status
+    
     const checkNetwork = async () => {
       const status = await isOnline();
       setOnline(status);
     };
     checkNetwork();
 
-    // Listen for network changes
     const unsubscribe = addNetworkListener(state => {
       setOnline(state.isConnected && state.isInternetReachable);
     });
@@ -28,7 +27,7 @@ const NetworkStatus = () => {
   }, []);
 
   if (online) {
-    return null; // Don't show anything when online
+    return null; 
   }
 
   return (

@@ -2,9 +2,13 @@
 
     <uses-permission android:name="android.permission.INTERNET" />  
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- SMS permissions for healthcare notifications only -->
+    <!-- SMS permission for healthcare notifications only - used to send follow-up reminders and appointment notifications -->
     <uses-permission android:name="android.permission.SEND_SMS" />
-    <!-- Removed READ_SMS and RECEIVE_SMS as they're not needed for sending notifications -->
+    <!-- For Android 13+ notification permissions -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Firebase Auth permissions -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"

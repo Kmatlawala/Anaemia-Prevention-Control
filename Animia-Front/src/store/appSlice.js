@@ -19,13 +19,12 @@ const initialState = {
   error: null,
 };
 
-// Async thunk to initialize app
 export const initializeApp = createAsyncThunk(
   'app/initialize',
   async (_, { rejectWithValue }) => {
     try {
-      // Here you would typically initialize app settings, load user preferences, etc.
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate initialization
+      
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
       
       return {
         isInitialized: true,
@@ -38,13 +37,12 @@ export const initializeApp = createAsyncThunk(
   }
 );
 
-// Async thunk to sync data
 export const syncData = createAsyncThunk(
   'app/syncData',
   async (_, { rejectWithValue }) => {
     try {
-      // Here you would typically sync data with server
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate sync
+      
+      await new Promise(resolve => setTimeout(resolve, 2000)); 
       
       return {
         lastSync: new Date().toISOString(),
@@ -98,7 +96,7 @@ const appSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // Initialize app
+      
       .addCase(initializeApp.pending, (state) => {
         state.loading = true;
         state.error = null;
@@ -113,7 +111,7 @@ const appSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Sync data
+      
       .addCase(syncData.pending, (state) => {
         state.sync.isSyncing = true;
         state.sync.syncError = null;
@@ -144,7 +142,6 @@ export const {
   resetApp,
 } = appSlice.actions;
 
-// Selectors
 export const selectIsOnline = (state) => state.app.isOnline;
 export const selectIsInitialized = (state) => state.app.isInitialized;
 export const selectTheme = (state) => state.app.theme;

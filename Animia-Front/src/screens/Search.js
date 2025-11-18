@@ -1,4 +1,4 @@
-// src/screens/Search.js
+
 import React, {useEffect, useRef, useState, useCallback} from 'react';
 import {
   View,
@@ -26,6 +26,7 @@ import dayjs from 'dayjs';
 import Input from '../components/Input';
 import NetworkStatus from '../components/NetworkStatus';
 import {getRole} from '../utils/role';
+import LinearGradient from 'react-native-linear-gradient';
 import {API} from '../utils/api';
 import {useDispatch, useSelector} from 'react-redux';
 import {
@@ -42,11 +43,29 @@ const Search = ({navigation, hideHeader = false}) => {
   const [results, setResults] = useState([]);
   const debounceRef = useRef(null);
   const [isPatient, setIsPatient] = useState(false);
+  const beneficiariesRef = useRef([]);
 
-  // Get beneficiaries from Redux store (with offline caching)
   const beneficiaries = useSelector(selectBeneficiaries);
   const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
   const beneficiaryError = useSelector(selectBeneficiaryError);
+
+  useEffect(() => {
+    beneficiariesRef.current = beneficiaries || [];
+  }, [beneficiaries]);
+
+  const authState = useSelector(state => state.auth);
+  const userRole = authState?.role;
+  const selectedBeneficiary = authState?.selectedBeneficiary;
+
+  useEffect(() => {
+    if (userRole === 'Patient' && selectedBeneficiary) {
+      navigation.replace('BeneficiaryDetail', {
+        record: selectedBeneficiary,
+        readOnly: true,
+        fromPatientList: true,
+      });
+    }
+  }, [userRole, selectedBeneficiary, navigation]);
 
   useEffect(() => {
     (async () => {
@@ -54,11 +73,9 @@ const Search = ({navigation, hideHeader = false}) => {
       setIsPatient(String(r || '').toLowerCase() === 'patient');
     })();
 
-    // Load beneficiaries from Redux store (with offline caching)
     dispatch(fetchBeneficiaries());
   }, [dispatch]);
 
-  // Updated doSearch to use Redux store (with offline caching)
   const doSearch = useCallback(async text => {
     const raw = (text || '').trim();
     if (!raw) {
@@ -68,27 +85,19 @@ const Search = ({navigation, hideHeader = false}) => {
 
     setLoading(true);
     try {
-      // Debug cache status
-      await debugCacheStatus();
+      
+      let all = beneficiariesRef.current || [];
 
-      // Fetch beneficiaries from Redux store (with offline caching)
-      await dispatch(fetchBeneficiaries());
+      if (!all || all.length === 0) {
+        await dispatch(fetchBeneficiaries());
 
-      // Use beneficiaries from Redux store
-      const all = beneficiaries;
-      if (all[0]) {
-        setResults([
-          {
-            latest_hemoglobin: all[0].latest_hemoglobin,
-            latest_anemia_category: all[0].latest_anemia_category,
-            intervention_id: all[0].intervention_id,
-          },
-        ]);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        all = beneficiariesRef.current || [];
       }
 
       if (!Array.isArray(all) || all.length === 0) {
-        console.warn('[Search] No beneficiaries data available');
         setResults([]);
+        setLoading(false);
         return;
       }
 
@@ -112,12 +121,11 @@ const Search = ({navigation, hideHeader = false}) => {
       }
       setResults(filtered);
     } catch (e) {
-      console.warn('[Search] search err', e);
       setResults([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dispatch]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -125,11 +133,14 @@ const Search = ({navigation, hideHeader = false}) => {
     return () => clearTimeout(debounceRef.current);
   }, [q, doSearch]);
 
-  // hardware back -> go to Dashboard (prevents crash you saw)
   useFocusEffect(
     useCallback(() => {
       const onBack = () => {
-        navigation.navigate('Dashboard');
+        if (navigation.canGoBack()) {
+          navigation.goBack();
+        } else {
+          navigation.navigate('Dashboard');
+        }
         return true;
       };
       BackHandler.addEventListener('hardwareBackPress', onBack);
@@ -137,13 +148,17 @@ const Search = ({navigation, hideHeader = false}) => {
     }, [navigation]),
   );
 
-  // Maintain search results when returning from detail screen
-  // Only re-run search if we're not embedded (hideHeader = false)
+  const hasSearchedRef = useRef(false);
   useFocusEffect(
     useCallback(() => {
-      // Re-run search if we have a query but no results and we're not embedded
-      if (!hideHeader && q.length > 0 && results.length === 0 && !loading) {
+      
+      if (!hideHeader && q.length > 0 && results.length === 0 && !loading && !hasSearchedRef.current) {
+        hasSearchedRef.current = true;
         doSearch(q);
+      }
+      
+      if (q.length === 0) {
+        hasSearchedRef.current = false;
       }
     }, [hideHeader, q, results.length, loading, doSearch]),
   );
@@ -159,7 +174,6 @@ const Search = ({navigation, hideHeader = false}) => {
       item.id_number ||
       (item.unique_id ? item.unique_id.slice(0, 12) : '');
 
-    // Determine status badge
     const hasScreening = item.latest_hemoglobin;
     const hasIntervention = item.intervention_id;
     let statusBadge = null;
@@ -252,7 +266,7 @@ const Search = ({navigation, hideHeader = false}) => {
               </Text>
             </View>
 
-            {/* Display screening data if available */}
+            {}
             {item.latest_hemoglobin && (
               <View style={styles.screeningInfo}>
                 <View style={styles.detailsRow}>
@@ -265,7 +279,7 @@ const Search = ({navigation, hideHeader = false}) => {
               </View>
             )}
 
-            {/* Display intervention data if available */}
+            {}
             {item.intervention_id && (
               <View style={styles.interventionInfo}>
                 <View style={styles.detailsRow}>
@@ -294,9 +308,50 @@ const Search = ({navigation, hideHeader = false}) => {
   return (
     <View style={styles.screen}>
       <NetworkStatus />
-      {!hideHeader && <Header title="Search Beneficiary" variant="back" />}
+      {!hideHeader && (
+        <Header
+          title="Search Beneficiary"
+          variant="back"
+          onBackPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate('Dashboard');
+            }
+          }}
+        />
+      )}
 
-      {/* Enhanced Search Section */}
+      {}
+      {isPatient && (
+        <TouchableOpacity
+          style={styles.patientInfoBanner}
+          onPress={() => navigation.navigate('Information')}
+          activeOpacity={0.8}>
+          <LinearGradient
+            colors={[colors.primary, colors.primary + 'DD', colors.primary + 'BB']}
+            start={{x: 0, y: 0}}
+            end={{x: 1, y: 0}}
+            style={styles.patientInfoBannerGradient}>
+            <View style={styles.patientInfoBannerContent}>
+              <View style={styles.patientInfoBannerIconContainer}>
+                <Icon name="information" size={28} color={colors.white} />
+              </View>
+              <View style={styles.patientInfoBannerTextContainer}>
+                <Text style={styles.patientInfoBannerTitle}>
+                  📚 Important Health Information
+                </Text>
+                <Text style={styles.patientInfoBannerSubtitle}>
+                  Learn about IFA, nutrition, and follow-up care
+                </Text>
+              </View>
+              <Icon name="arrow-right" size={24} color={colors.white} />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
+
+      {}
       <View style={styles.searchSection}>
         <View style={styles.searchContainer}>
           <View style={styles.inputContainer}>
@@ -324,7 +379,7 @@ const Search = ({navigation, hideHeader = false}) => {
           </TouchableOpacity>
         </View>
 
-        {/* Search Tips */}
+        {}
         {q.length === 0 && (
           <View style={styles.searchTips}>
             <Text style={styles.searchTipsTitle}>Search Tips:</Text>
@@ -348,7 +403,7 @@ const Search = ({navigation, hideHeader = false}) => {
         )}
       </View>
 
-      {/* Results Section */}
+      {}
       <View style={styles.resultsSection}>
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -418,7 +473,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  // Search Section
   searchSection: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.horizontal,
@@ -427,7 +481,6 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.borderLight,
   },
 
-  // Search Container
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -467,7 +520,6 @@ const styles = StyleSheet.create({
     minWidth: 56,
   },
 
-  // Search Tips
   searchTips: {
     backgroundColor: colors.background,
     borderRadius: borderRadius.md,
@@ -495,13 +547,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // Results Section
   resultsSection: {
     flex: 1,
     paddingHorizontal: spacing.horizontal,
   },
 
-  // Loading
   loadingContainer: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
@@ -513,7 +563,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
   },
 
-  // Empty States
   emptyContainer: {
     alignItems: 'center',
     paddingVertical: spacing.xl * 2,
@@ -556,7 +605,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
   },
 
-  // Results
   resultsHeader: {
     marginBottom: spacing.md,
     paddingVertical: spacing.sm,
@@ -575,7 +623,6 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
 
-  // Card Styles
   card: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
@@ -634,6 +681,47 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingLeft: spacing.sm,
   },
+  
+  patientInfoBanner: {
+    marginHorizontal: spacing.horizontal,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+    ...shadows.lg,
+    borderWidth: 3,
+    borderColor: colors.primary + '80',
+  },
+  patientInfoBannerGradient: {
+    padding: spacing.md,
+  },
+  patientInfoBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  patientInfoBannerIconContainer: {
+    backgroundColor: colors.white + '30',
+    borderRadius: borderRadius.full,
+    padding: spacing.sm,
+    borderWidth: 2,
+    borderColor: colors.white + '50',
+  },
+  patientInfoBannerTextContainer: {
+    flex: 1,
+  },
+  patientInfoBannerTitle: {
+    ...typography.body,
+    color: colors.white,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.xs / 2,
+    fontSize: 16,
+  },
+  patientInfoBannerSubtitle: {
+    ...typography.caption,
+    color: colors.white + 'EE',
+    lineHeight: 16,
+  },
   detailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -651,7 +739,6 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
 
-  // Screening and Intervention Info Styles
   screeningInfo: {
     marginTop: spacing.sm,
     paddingTop: spacing.sm,

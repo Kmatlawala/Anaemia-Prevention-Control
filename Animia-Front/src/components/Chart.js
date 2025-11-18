@@ -1,4 +1,4 @@
-// src/components/Chart.js
+
 import React from 'react';
 import {View, Text, StyleSheet, Dimensions} from 'react-native';
 import {
@@ -154,10 +154,10 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.lg,
   },
-  // Bar Chart Styles
+  
   barChartContainer: {
     width: '100%',
     alignItems: 'center',
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.semibold,
     marginTop: spacing.xs,
   },
-  // Pie Chart Styles
+  
   pieChartContainer: {
     width: '100%',
   },

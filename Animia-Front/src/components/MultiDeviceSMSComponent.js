@@ -16,10 +16,6 @@ import {
   getDevicesSMSStatus,
 } from '../utils/multiDeviceSMS';
 
-/**
- * Multi-Device SMS Component
- * Handles SMS sending across multiple devices
- */
 const MultiDeviceSMSComponent = ({
   beneficiaries = [],
   onSMSComplete = () => {},
@@ -40,10 +36,9 @@ const MultiDeviceSMSComponent = ({
     try {
       const deviceList = await getAvailableDevices();
       setDevices(deviceList);
-      setSelectedDevices(deviceList.map(d => d.id)); // Select all by default
+      setSelectedDevices(deviceList.map(d => d.id)); 
     } catch (error) {
-      console.error('Error loading devices:', error);
-    }
+      }
   };
 
   const loadDeviceStatus = async () => {
@@ -51,8 +46,7 @@ const MultiDeviceSMSComponent = ({
       const status = await getDevicesSMSStatus();
       setDeviceStatus(status);
     } catch (error) {
-      console.error('Error loading device status:', error);
-    }
+      }
   };
 
   const toggleDeviceSelection = deviceId => {
@@ -76,7 +70,7 @@ const MultiDeviceSMSComponent = ({
 
     setIsLoading(true);
     try {
-      const result = await sendSMSToAllDevices('9876543210', message); // Replace with actual number
+      const result = await sendSMSToAllDevices('9876543210', message); 
 
       Alert.alert(
         'Multi-Device SMS Results',
@@ -86,14 +80,9 @@ const MultiDeviceSMSComponent = ({
       );
 
       onSMSComplete({type: 'multi_device', result});
-      loadDeviceStatus(); // Refresh status
+      loadDeviceStatus(); 
     } catch (error) {
-      console.error('Multi-device SMS error:', error);
-      console.error(
-        '[MultiDeviceSMSComponent] Failed to send SMS to devices:',
-        error.message,
-      );
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
@@ -127,12 +116,7 @@ const MultiDeviceSMSComponent = ({
       });
       loadDeviceStatus();
     } catch (error) {
-      console.error('Beneficiary multi-device SMS error:', error);
-      console.error(
-        '[MultiDeviceSMSComponent] Failed to send beneficiary SMS to devices:',
-        error.message,
-      );
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
@@ -171,12 +155,7 @@ const MultiDeviceSMSComponent = ({
       });
       loadDeviceStatus();
     } catch (error) {
-      console.error('Bulk multi-device SMS error:', error);
-      console.error(
-        '[MultiDeviceSMSComponent] Failed to send bulk SMS to devices:',
-        error.message,
-      );
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
@@ -185,7 +164,7 @@ const MultiDeviceSMSComponent = ({
     <ScrollView style={[styles.container, style]}>
       <Text style={styles.title}>Multi-Device SMS</Text>
 
-      {/* Device Status */}
+      {}
       {deviceStatus && (
         <View style={styles.statusContainer}>
           <Text style={styles.statusTitle}>Device Status</Text>
@@ -204,7 +183,7 @@ const MultiDeviceSMSComponent = ({
         </View>
       )}
 
-      {/* Device Selection */}
+      {}
       <View style={styles.deviceContainer}>
         <Text style={styles.label}>Select Devices:</Text>
         {devices.map(device => (
@@ -228,7 +207,7 @@ const MultiDeviceSMSComponent = ({
         ))}
       </View>
 
-      {/* Message Input */}
+      {}
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Message:</Text>
         <TextInput
@@ -242,7 +221,7 @@ const MultiDeviceSMSComponent = ({
         />
       </View>
 
-      {/* Action Buttons */}
+      {}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, styles.allDevicesButton]}
@@ -267,7 +246,7 @@ const MultiDeviceSMSComponent = ({
         )}
       </View>
 
-      {/* Individual Beneficiary Actions */}
+      {}
       {beneficiaries.slice(0, 3).map((beneficiary, index) => (
         <View key={beneficiary.id || index} style={styles.beneficiaryContainer}>
           <Text style={styles.beneficiaryName}>{beneficiary.name}</Text>
@@ -280,7 +259,7 @@ const MultiDeviceSMSComponent = ({
         </View>
       ))}
 
-      {/* Device Results */}
+      {}
       {devices.map(device => (
         <View key={device.id} style={styles.deviceResultContainer}>
           <Text style={styles.deviceResultTitle}>{device.name}</Text>

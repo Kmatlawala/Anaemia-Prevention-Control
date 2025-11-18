@@ -1,4 +1,3 @@
-// src/utils/sync.js
 import NetInfo from '@react-native-community/netinfo';
 import {
   getOfflineQueue,
@@ -7,7 +6,6 @@ import {
 } from './asyncCache';
 import {Alert} from 'react-native';
 
-// Use existing EC2 backend for sync
 const SYNC_ENDPOINT = 'http://3.80.46.128:3000/api/sync';
 
 async function postJSON(url, body) {
@@ -21,7 +19,7 @@ async function postJSON(url, body) {
 }
 
 export async function runSyncOnce() {
-  if (!SYNC_ENDPOINT) return false; // not configured yet; keep items queued
+  if (!SYNC_ENDPOINT) return false;
 
   const state = await NetInfo.fetch();
   if (!state.isConnected) return false;
@@ -29,7 +27,6 @@ export async function runSyncOnce() {
   const items = await getOfflineQueue();
   if (!items || !items.length) return true;
 
-  console.log('[Sync] Processing offline queue:', items.length, 'items');
   let syncedCount = 0;
 
   for (const item of items) {
@@ -43,18 +40,11 @@ export async function runSyncOnce() {
       });
       await removeFromOfflineQueue(item.id);
       syncedCount++;
-      console.log('[Sync] Successfully synced item:', item.id);
     } catch (e) {
-      console.error(
-        '[Sync] Failed to sync item:',
-        item.id,
-        e?.message || String(e),
-      );
-      // Keep item in queue for retry
+      console.error('Error syncing item:', e);
     }
   }
 
-  // Show success notification if items were synced
   if (syncedCount > 0) {
     Alert.alert(
       'Sync Complete',

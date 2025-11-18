@@ -10,17 +10,16 @@ const ProgressIndicator = ({currentStep = 1, totalSteps = 3}) => {
   ).current;
 
   useEffect(() => {
-    // Animate progress bar
+    
     Animated.timing(progressAnim, {
       toValue: currentStep / totalSteps,
       duration: 500,
       useNativeDriver: false,
     }).start();
 
-    // Animate individual steps - all steps should be visible
     stepAnimations.forEach((anim, index) => {
       Animated.timing(anim, {
-        toValue: 1, // Always make all steps visible
+        toValue: 1, 
         duration: 300,
         delay: index * 100,
         useNativeDriver: true,
@@ -41,7 +40,7 @@ const ProgressIndicator = ({currentStep = 1, totalSteps = 3}) => {
 
   return (
     <View style={styles.container}>
-      {/* Step Indicators with connecting lines */}
+      {}
       <View style={styles.stepsContainer}>
         {steps.map((step, index) => {
           const isCompleted = index + 1 < currentStep;
@@ -96,7 +95,7 @@ const ProgressIndicator = ({currentStep = 1, totalSteps = 3}) => {
                 </Text>
               </Animated.View>
 
-              {/* Connecting line to next step */}
+              {}
               {index < steps.length - 1 && (
                 <View style={styles.connectingLine}>
                   <Animated.View
@@ -208,7 +207,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     overflow: 'hidden',
     position: 'relative',
-    top: 16, // Align with circle center
+    top: 16, 
     borderRadius: 2,
   },
   connectingLineFill: {

@@ -2,6 +2,31 @@ import {Alert, Linking, Platform, PermissionsAndroid} from 'react-native';
 import nativeSMS from './nativeSMS';
 
 /**
+ * Check if SMS permissions are already granted
+ * @returns {Promise<boolean>} - Permission status
+ */
+async function checkSMSPermissions() {
+  try {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    const sendSmsGranted = await PermissionsAndroid.check(
+      PermissionsAndroid.PERMISSIONS.SEND_SMS,
+    );
+
+    console.log('[SMS Permissions] Check result:', {
+      sendSms: sendSmsGranted,
+    });
+
+    return sendSmsGranted;
+  } catch (error) {
+    console.error('[SMS Permissions] Check error:', error);
+    return false;
+  }
+}
+
+/**
  * Request SMS permissions for Android
  * @returns {Promise<boolean>} - Permission granted status
  */
@@ -11,21 +36,54 @@ async function requestSMSPermissions() {
       return true;
     }
 
-    const granted = await PermissionsAndroid.requestMultiple([
+    // First check if permissions are already granted
+    const alreadyGranted = await checkSMSPermissions();
+    if (alreadyGranted) {
+      console.log('[SMS Permissions] Already granted');
+      return true;
+    }
+
+    console.log('[SMS Permissions] Requesting permissions...');
+
+    const granted = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.SEND_SMS,
-      PermissionsAndroid.PERMISSIONS.READ_SMS,
-    ]);
+    );
 
-    const sendSmsGranted =
-      granted[PermissionsAndroid.PERMISSIONS.SEND_SMS] ===
-      PermissionsAndroid.RESULTS.GRANTED;
-    const readSmsGranted =
-      granted[PermissionsAndroid.PERMISSIONS.READ_SMS] ===
-      PermissionsAndroid.RESULTS.GRANTED;
+    const sendSmsGranted = granted === PermissionsAndroid.RESULTS.GRANTED;
 
-    return sendSmsGranted && readSmsGranted;
+    console.log('[SMS Permissions] Request result:', {
+      sendSms: sendSmsGranted,
+      granted,
+    });
+
+    if (!sendSmsGranted) {
+      Alert.alert(
+        'SMS Permission Required',
+        'This app needs SMS permission to send healthcare notifications. Please enable it in Settings > Apps > Animia > Permissions.',
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {
+            text: 'Open Settings',
+            onPress: () => Linking.openSettings(),
+          },
+        ],
+      );
+    }
+
+    return sendSmsGranted;
   } catch (error) {
     console.error('[SMS Permissions] Error:', error);
+    Alert.alert(
+      'Permission Error',
+      'Failed to request SMS permissions. Please enable manually in Settings.',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Open Settings',
+          onPress: () => Linking.openSettings(),
+        },
+      ],
+    );
     return false;
   }
 }
@@ -36,19 +94,46 @@ async function requestSMSPermissions() {
  * @param {string} message - SMS message content
  * @returns {Promise<boolean>} - Success status
  */
+/**
+ * Initialize SMS permissions on app startup
+ * This should be called when the app starts
+ */
+export async function initializeSMSPermissions() {
+  try {
+    console.log('[SMS Init] Checking SMS permissions...');
+    const hasPermissions = await checkSMSPermissions();
+
+    if (!hasPermissions) {
+      console.log('[SMS Init] SMS permissions not granted');
+      // Don't request immediately on startup, just log
+      return false;
+    }
+
+    console.log('[SMS Init] SMS permissions already granted');
+    return true;
+  } catch (error) {
+    console.error('[SMS Init] Error:', error);
+    return false;
+  }
+}
+
 export async function sendDirectSMSNative(phoneNumber, message) {
   try {
     console.log('[Direct SMS] Attempting to send SMS to:', phoneNumber);
     console.log('[Direct SMS] Message:', message);
 
-    const hasPermissions = await requestSMSPermissions();
+    // Check permissions first
+    const hasPermissions = await checkSMSPermissions();
     if (!hasPermissions) {
-      Alert.alert(
-        'Permission Required',
-        'SMS permission is required to send messages directly.',
-      );
-      return false;
+      console.log('[Direct SMS] Permissions not granted, requesting...');
+      const granted = await requestSMSPermissions();
+      if (!granted) {
+        console.log('[Direct SMS] Permission denied by user');
+        return false;
+      }
     }
+
+    console.log('[Direct SMS] Permissions granted, proceeding with SMS');
 
     const formattedNumber = formatPhoneNumber(phoneNumber);
     console.log('[Direct SMS] Formatted number:', formattedNumber);

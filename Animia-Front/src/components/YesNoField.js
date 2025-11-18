@@ -42,7 +42,7 @@ const styles = StyleSheet.create({
   label: { ...typography.subtitle, marginRight: spacing.sm, flexShrink: 1 },
   req: { color: '#D9534F', fontWeight: '700' },
   options: { flexDirection: 'row', alignItems: 'center' },
-  opt: { flexDirection: 'row', alignItems: 'center', paddingVertical: 0 }, // tighter
+  opt: { flexDirection: 'row', alignItems: 'center', paddingVertical: 0 }, 
   optText: { color: colors.text, marginLeft: 2 },
   errorText: { color: '#D9534F', marginTop: 4, fontSize: 12 },
 });

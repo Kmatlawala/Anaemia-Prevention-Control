@@ -1,4 +1,3 @@
-// src/screens/FollowUp.js
 import React, {useCallback, useEffect, useState, useMemo} from 'react';
 import {
   View,
@@ -11,6 +10,8 @@ import {
   BackHandler,
   Dimensions,
   Animated,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import {useFocusEffect} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -31,18 +32,24 @@ const {width: screenWidth} = Dimensions.get('window');
 
 import {API} from '../utils/api';
 import {getRole} from '../utils/role';
-import {sendSMS} from '../utils/sms';
+import {
+  sendSmartSMS,
+  formatPhoneNumber,
+  isValidPhoneNumber,
+} from '../utils/sms';
 
 const FollowUp = ({navigation}) => {
   const [loading, setLoading] = useState(true);
-  const [full, setFull] = useState([]); // unfiltered list from DB
-  const [list, setList] = useState([]); // filtered for render
+  const [full, setFull] = useState([]);
+  const [list, setList] = useState([]);
 
-  const [filterDate, setFilterDate] = useState(dayjs().format('YYYY-MM-DD')); // date filter for viewing worklist
-  const [nextDate] = useState(''); // schedule-next helper, optional
+  const [filterDate, setFilterDate] = useState(dayjs().format('YYYY-MM-DD'));
+  const [nextDate] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedPatientHistory, setSelectedPatientHistory] = useState(null);
+  const [historyModalVisible, setHistoryModalVisible] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(30)).current;
 
@@ -55,12 +62,6 @@ const FollowUp = ({navigation}) => {
     }
   }, []);
 
-  // ---------- lifecycle ----------
-  useEffect(() => {
-    loadWorklist();
-  }, [loadWorklist]);
-
-  // Animation on component mount
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -75,6 +76,7 @@ const FollowUp = ({navigation}) => {
       }),
     ]).start();
   }, []);
+
   useEffect(() => {
     (async () => {
       const r = await getRole();
@@ -82,27 +84,17 @@ const FollowUp = ({navigation}) => {
     })();
   }, []);
 
-  // Back goes up (not to drawer)
-  useFocusEffect(
-    useCallback(() => {
-      const onBack = () => {
-        navigation.goBack();
-        return true;
-      };
-      const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
-      return () => sub.remove();
-    }, [navigation]),
-  );
-
-  // Apply filter when date changes
   useEffect(() => {
-    applyFilter();
-  }, [full, filterDate, applyFilter]);
+    const onBack = () => {
+      navigation.goBack();
+      return true;
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
+    return () => sub.remove();
+  }, [navigation]);
 
   const applyFilter = useCallback(() => {
-    // filter by selected date (same calendar day)
     if (!Array.isArray(full)) {
-      console.warn('[FollowUp] full is not an array:', full);
       setList([]);
       return;
     }
@@ -112,45 +104,62 @@ const FollowUp = ({navigation}) => {
         return false;
       }
       const due = dayjs(i.follow_up_due).format('YYYY-MM-DD');
-      return !filterDate || due === filterDate;
+      return due === filterDate;
     });
 
-    setList(byDate);
+    const seen = new Set();
+    const uniqueList = byDate.filter(item => {
+      if (!item.id) return true;
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+
+    setList(uniqueList);
   }, [full, filterDate]);
 
-  // ---------- data ----------
   const loadWorklist = useCallback(async () => {
     setLoading(true);
     try {
       const response = await API.getBeneficiariesWithData(1000);
       const all = response?.data || response;
       if (!Array.isArray(all)) {
-        console.warn('[FollowUp] API returned non-array:', all);
         setFull([]);
         setList([]);
         return;
       }
 
-      const rows = all.filter(b => b.follow_up_due && !b.follow_up_done);
+      const rows = all.filter(b => b.follow_up_due && b.follow_up_done !== 1);
 
-      rows.sort((a, b) =>
+      const seen = new Set();
+      const uniqueRows = rows.filter(item => {
+        if (!item.id) return true;
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+      });
+
+      uniqueRows.sort((a, b) =>
         String(a.follow_up_due).localeCompare(String(b.follow_up_due)),
       );
-      setFull(rows);
-
-      const initial = rows.filter(
-        i =>
-          dayjs(i.follow_up_due).format('YYYY-MM-DD') ===
-          (filterDate || dayjs().format('YYYY-MM-DD')),
-      );
-      setList(initial);
+      setFull(uniqueRows);
     } catch (e) {
-      console.error('[FollowUp] Load error:', e);
       Alert.alert('Load failed', 'Could not load follow-ups.');
     } finally {
       setLoading(false);
     }
-  }, [filterDate]);
+  }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      loadWorklist();
+    }, [loadWorklist]),
+  );
+
+  useEffect(() => {
+    applyFilter();
+  }, [full, filterDate, applyFilter]);
+
   const [isPatient, setIsPatient] = useState(false);
   const markDone = async item => {
     try {
@@ -158,52 +167,276 @@ const FollowUp = ({navigation}) => {
         Alert.alert('Not allowed', 'Patients cannot modify follow-ups.');
         return;
       }
-      // Update follow_up_done via backend
-      if (item.phone) {
-        const smsMsg = `Your next follow-up is scheduled for ${dayjs(
-          nextDate,
-        ).format('YYYY-MM-DD')}.`;
-        sendSMS(item.phone, smsMsg);
+
+      const currentFollowUpDate = dayjs(item.follow_up_due);
+      const nextFollowUpDate = currentFollowUpDate
+        .add(2, 'month')
+        .endOf('day')
+        .toISOString();
+      const nextFollowUpFormatted =
+        dayjs(nextFollowUpDate).format('DD-MM-YYYY');
+
+      const updateData = {
+        name: item.name,
+        age: item.age,
+        gender: item.gender,
+        phone: item.phone,
+        address: item.address,
+        id_number: item.id_number,
+        aadhaar_hash: item.aadhaar_hash,
+        dob: item.dob,
+        category: item.category,
+        alt_phone: item.alt_phone,
+        doctor_name: item.doctor_name,
+        doctor_phone: item.doctor_phone,
+        registration_date: item.registration_date,
+        location: item.location,
+        hb: item.hb,
+        calcium_qty: item.calcium_qty,
+        short_id: item.short_id,
+
+        follow_up_done: 0,
+        last_followed: dayjs().toISOString(),
+        follow_up_due: nextFollowUpDate,
+      };
+
+      await API.updateBeneficiary(item.id, updateData);
+
+      if (item.phone && isValidPhoneNumber(item.phone)) {
+        try {
+          const formattedPhone = formatPhoneNumber(item.phone);
+          const message = `Dear ${item.name}, your follow-up has been completed. Your next follow-up is scheduled for ${nextFollowUpFormatted}. Thank you for visiting Animia Health.`;
+
+          const smsSuccess = await sendSmartSMS(formattedPhone, message, true);
+          if (smsSuccess) {
+          }
+        } catch (smsError) {}
       }
-      await API.request(`/api/beneficiaries/${item.id}`, {
-        method: 'PATCH',
-        body: {follow_up_done: 1, last_followed: dayjs().toISOString()},
-      });
+
+      Alert.alert(
+        'Success',
+        `Follow-up marked as done! Next follow-up scheduled for ${nextFollowUpFormatted}. SMS sent to patient.`,
+      );
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       await loadWorklist();
     } catch (e) {
-      console.warn(e);
       Alert.alert('Failed', 'Could not mark as done.');
     }
   };
 
   const scheduleNext = async item => {
-    const next =
-      nextDate && /^\d{4}-\d{2}-\d{2}$/.test(nextDate)
-        ? dayjs(nextDate).endOf('day').toISOString()
-        : dayjs().add(30, 'day').endOf('day').toISOString();
     try {
       if (isPatient) {
         Alert.alert('Not allowed', 'Patients cannot schedule follow-ups.');
         return;
       }
-      await API.request(`/api/beneficiaries/${item.id}`, {
-        method: 'PATCH',
-        body: {follow_up_due: next, follow_up_done: 0},
-      });
+
+      const currentFollowUpDate = item.follow_up_due
+        ? dayjs(item.follow_up_due)
+        : dayjs();
+      const next = currentFollowUpDate
+        .add(30, 'day')
+        .endOf('day')
+        .toISOString();
+      const formattedDate = dayjs(next).format('DD-MM-YYYY');
+
+      const updateData = {
+        name: item.name,
+        age: item.age,
+        gender: item.gender,
+        phone: item.phone,
+        address: item.address,
+        id_number: item.id_number,
+        aadhaar_hash: item.aadhaar_hash,
+        dob: item.dob,
+        category: item.category,
+        alt_phone: item.alt_phone,
+        doctor_name: item.doctor_name,
+        doctor_phone: item.doctor_phone,
+        registration_date: item.registration_date,
+        location: item.location,
+        hb: item.hb,
+        calcium_qty: item.calcium_qty,
+        short_id: item.short_id,
+
+        follow_up_due: next,
+        follow_up_done: 0,
+      };
+
+      await API.updateBeneficiary(item.id, updateData);
+
+      if (item.phone && isValidPhoneNumber(item.phone)) {
+        try {
+          const formattedPhone = formatPhoneNumber(item.phone);
+          const message = `Dear ${item.name}, your follow-up has been rescheduled to ${formattedDate}. Please visit on time. Thank you. - Animia Health`;
+
+          const smsSuccess = await sendSmartSMS(formattedPhone, message, true);
+          if (smsSuccess) {
+          }
+        } catch (smsError) {}
+      }
+
+      Alert.alert(
+        'Success',
+        `Follow-up scheduled for ${formattedDate}.${
+          item.phone && isValidPhoneNumber(item.phone)
+            ? ' SMS sent to patient.'
+            : ''
+        }`,
+      );
+
       await loadWorklist();
     } catch (e) {
-      console.warn(e);
       Alert.alert('Failed', 'Could not schedule follow-up.');
     }
   };
 
-  // ---------- render ----------
+  const sendFollowUpReminderSMS = async item => {
+    try {
+      if (!item.phone || !isValidPhoneNumber(item.phone)) {
+        Alert.alert('Error', 'No valid phone number found for this patient.');
+        return;
+      }
+
+      const formattedPhone = formatPhoneNumber(item.phone);
+      const dueDate = item.follow_up_due
+        ? dayjs(item.follow_up_due).format('DD-MM-YYYY')
+        : 'soon';
+
+      const message = `Dear ${item.name}, this is a reminder for your follow-up appointment scheduled for ${dueDate}. Please visit on time. Contact us if you have any questions. - Animia Health`;
+
+      const success = await sendSmartSMS(formattedPhone, message, true);
+
+      if (success) {
+        Alert.alert('Success', 'Follow-up reminder SMS sent successfully!');
+      } else {
+        Alert.alert('Failed', 'Could not send SMS. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send SMS: ' + error.message);
+    }
+  };
+
+  const sendBulkFollowUpSMS = async () => {
+    try {
+      if (list.length === 0) {
+        Alert.alert('No Data', 'No follow-ups available to send SMS.');
+        return;
+      }
+
+      const validPatients = list.filter(
+        item => item.phone && isValidPhoneNumber(item.phone),
+      );
+
+      if (validPatients.length === 0) {
+        Alert.alert(
+          'No Valid Numbers',
+          'No patients with valid phone numbers found.',
+        );
+        return;
+      }
+
+      Alert.alert(
+        'Send Bulk SMS',
+        `Send follow-up reminders to ${validPatients.length} patients?`,
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {
+            text: 'Send',
+            onPress: async () => {
+              let successCount = 0;
+              let failCount = 0;
+
+              for (const item of validPatients) {
+                try {
+                  const formattedPhone = formatPhoneNumber(item.phone);
+                  const dueDate = item.follow_up_due
+                    ? dayjs(item.follow_up_due).format('DD-MM-YYYY')
+                    : 'soon';
+
+                  const message = `Dear ${item.name}, this is a reminder for your follow-up appointment scheduled for ${dueDate}. Please visit on time. Contact us if you have any questions. - Animia Health`;
+
+                  const success = await sendSmartSMS(
+                    formattedPhone,
+                    message,
+                    true,
+                  );
+                  if (success) {
+                    successCount++;
+                  } else {
+                    failCount++;
+                  }
+
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                } catch (error) {
+                  failCount++;
+                }
+              }
+
+              Alert.alert(
+                'Bulk SMS Complete',
+                `Sent: ${successCount} | Failed: ${failCount}`,
+                [{text: 'OK'}],
+              );
+            },
+          },
+        ],
+      );
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send bulk SMS: ' + error.message);
+    }
+  };
+
   const openDetail = item => {
     navigation.navigate('BeneficiaryDetail', {
       unique_id: item.unique_id,
       record: item,
       readOnly: isPatient,
+      fromFollowUp: !isPatient,
     });
+  };
+
+  const loadPatientHistory = async item => {
+    setLoadingHistory(true);
+    try {
+      const response = await API.getBeneficiaryHistory(item.id);
+      const historyData = {
+        patient: item,
+        screenings: response?.screenings || [],
+        interventions: response?.interventions || [],
+      };
+
+      setSelectedPatientHistory(historyData);
+
+      setHistoryModalVisible(true);
+    } catch (error) {
+      let errorMessage = 'Could not load patient history.';
+      if (error && typeof error === 'object') {
+        if (error.message) {
+          errorMessage = error.message;
+        } else if (error.data) {
+          errorMessage =
+            typeof error.data === 'string'
+              ? error.data
+              : error.data.message || errorMessage;
+        } else if (error.originalError) {
+          errorMessage =
+            typeof error.originalError === 'string'
+              ? error.originalError
+              : error.originalError?.message || errorMessage;
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const renderItem = ({item, index}) => (
@@ -222,31 +455,73 @@ const FollowUp = ({navigation}) => {
           ],
         },
       ]}>
-      <TouchableOpacity
-        onPress={() => openDetail(item)}
-        activeOpacity={0.8}
-        style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <View style={styles.patientInfo}>
-            <View style={styles.avatarContainer}>
-              <Icon name="account-circle" size={32} color={colors.primary} />
+      <View style={styles.cardContent}>
+        <TouchableOpacity
+          onPress={() => openDetail(item)}
+          activeOpacity={0.8}
+          style={styles.cardClickableArea}>
+          <View style={styles.cardHeader}>
+            <View style={styles.patientInfo}>
+              <View style={styles.avatarContainer}>
+                <Icon name="account-circle" size={32} color={colors.primary} />
+              </View>
+              <View style={styles.patientDetails}>
+                <Text style={styles.name}>{item.name || '-'}</Text>
+                <Text style={styles.sub}>
+                  {item.id_masked || item.id_number || ''} • {item.phone || '-'}
+                </Text>
+                {}
+                {(item.latest_hemoglobin || item.last_intervention_date) && (
+                  <View style={styles.historySummary}>
+                    {item.latest_hemoglobin && (
+                      <View style={styles.historyBadge}>
+                        <Icon name="water" size={12} color={colors.primary} />
+                        <Text style={styles.historyBadgeText}>
+                          Last HB: {item.latest_hemoglobin} g/dL
+                        </Text>
+                      </View>
+                    )}
+                    {item.last_intervention_date && (
+                      <View style={styles.historyBadge}>
+                        <Icon name="pill" size={12} color={colors.info} />
+                        <Text style={styles.historyBadgeText}>
+                          Last Intervention:{' '}
+                          {dayjs(item.last_intervention_date).format(
+                            'DD-MM-YYYY',
+                          )}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+              </View>
             </View>
-            <View style={styles.patientDetails}>
-              <Text style={styles.name}>{item.name || '-'}</Text>
-              <Text style={styles.sub}>
-                {item.id_masked || item.id_number || ''} • {item.phone || '-'}
+            <View style={styles.dueDateContainer}>
+              <Text style={styles.dueDateLabel}>Due Date</Text>
+              <Text style={styles.badgeDue}>
+                {item.follow_up_due
+                  ? dayjs(item.follow_up_due).format('MMM DD')
+                  : '-'}
               </Text>
             </View>
           </View>
-          <View style={styles.dueDateContainer}>
-            <Text style={styles.dueDateLabel}>Due Date</Text>
-            <Text style={styles.badgeDue}>
-              {item.follow_up_due
-                ? dayjs(item.follow_up_due).format('MMM DD')
-                : '-'}
-            </Text>
-          </View>
-        </View>
+        </TouchableOpacity>
+
+        {}
+        <TouchableOpacity
+          style={styles.viewHistoryButton}
+          onPress={() => loadPatientHistory(item)}
+          disabled={loadingHistory}
+          activeOpacity={0.7}>
+          {loadingHistory ? (
+            <ActivityIndicator size="small" color={colors.primary} />
+          ) : (
+            <>
+              <Icon name="history" size={16} color={colors.primary} />
+              <Text style={styles.viewHistoryText}>View History</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.btn} onPress={() => markDone(item)}>
@@ -267,139 +542,390 @@ const FollowUp = ({navigation}) => {
             </Text>
           </TouchableOpacity>
         </View>
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 
   return (
-    <View style={styles.screen}>
-      <Header
-        title="Follow-Up Management"
-        variant="back"
-        onBackPress={() => navigation.goBack()}
-        rightIconName="calendar-check"
-      />
+    <>
+      <View style={styles.screen}>
+        <Header
+          title="Follow-Up Management"
+          variant="back"
+          onBackPress={() => navigation.goBack()}
+          rightIconName="calendar-check"
+        />
 
-      <Animated.View
-        style={[
-          styles.container,
-          {
-            opacity: fadeAnim,
-            transform: [{translateY: slideAnim}],
-          },
-        ]}>
-        {/* Date filter section */}
-        <View style={styles.dateSection}>
-          <View style={styles.dateHeader}>
-            <Icon name="calendar" size={20} color={colors.primary} />
-            <Text style={styles.dateLabel}>Follow-ups for date</Text>
-            {full.length > 0 && (
-              <Text style={styles.countText}>
-                ({full.length} total available)
-              </Text>
+        <Animated.View
+          style={[
+            styles.container,
+            {
+              opacity: fadeAnim,
+              transform: [{translateY: slideAnim}],
+            },
+          ]}>
+          {}
+          <View style={styles.dateSection}>
+            <View style={styles.dateHeader}>
+              <Icon name="calendar" size={20} color={colors.primary} />
+              <Text style={styles.dateLabel}>Follow-ups for date</Text>
+              {full.length > 0 && (
+                <Text style={styles.countText}>
+                  ({list.length} of {full.length})
+                </Text>
+              )}
+            </View>
+
+            <View style={styles.dateRow}>
+              <TouchableOpacity
+                style={styles.dateInputContainer}
+                onPress={() => setShowDatePicker(true)}
+                activeOpacity={0.7}>
+                <Text style={styles.dateValue}>
+                  {dayjs(filterDate).format('DD-MM-YYYY')}
+                </Text>
+                <Icon name="calendar-month" size={24} color={colors.primary} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setFilterDate(dayjs().format('YYYY-MM-DD'))}
+                style={styles.todayButton}>
+                <Text style={styles.todayButtonText}>Today</Text>
+              </TouchableOpacity>
+            </View>
+
+            {}
+            {showDatePicker && DateTimePicker && (
+              <DateTimePicker
+                mode="date"
+                display="calendar"
+                value={filterDate ? new Date(filterDate) : new Date()}
+                minimumDate={dayjs().subtract(120, 'year').toDate()}
+                onChange={(event, date) => {
+                  setShowDatePicker(false);
+                  if (date) {
+                    setFilterDate(dayjs(date).format('YYYY-MM-DD'));
+                  }
+                }}
+              />
             )}
           </View>
 
-          <View style={styles.dateRow}>
-            <TouchableOpacity
-              style={styles.dateInputContainer}
-              onPress={() => setShowDatePicker(true)}
-              activeOpacity={0.7}>
-              <Text style={styles.dateValue}>{filterDate}</Text>
-              <Icon name="calendar-month" size={24} color={colors.primary} />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setFilterDate(dayjs().format('YYYY-MM-DD'))}
-              style={styles.todayButton}>
-              <Text style={styles.todayButtonText}>Today</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* DateTimePicker for calendar functionality */}
-          {showDatePicker && DateTimePicker && (
-            <DateTimePicker
-              mode="date"
-              display="calendar"
-              value={filterDate ? new Date(filterDate) : new Date()}
-              minimumDate={dayjs().subtract(120, 'year').toDate()}
-              onChange={(event, date) => {
-                setShowDatePicker(false);
-                if (date) {
-                  setFilterDate(dayjs(date).format('YYYY-MM-DD'));
-                }
+          {}
+          {loading ? (
+            <ActivityIndicator style={{marginTop: spacing.lg}} />
+          ) : (
+            <FlatList
+              data={list}
+              keyExtractor={i => String(i.id)}
+              renderItem={renderItem}
+              contentContainerStyle={{
+                paddingTop: spacing.sm,
+                paddingBottom: spacing.lg,
               }}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconContainer}>
+                    <Icon
+                      name="calendar-check-outline"
+                      size={80}
+                      color={colors.primary}
+                    />
+                  </View>
+                  <Text style={styles.emptyText}>
+                    {full.length === 0 ? 'No Follow-up' : 'No Follow-up'}
+                  </Text>
+                  <Text style={styles.emptySubtext}>
+                    {full.length === 0
+                      ? 'There are no follow-up appointments scheduled. New appointments will appear here when created.'
+                      : `No follow-up appointments for ${dayjs(
+                          filterDate,
+                        ).format('DD MMM YYYY')}. ${full.length} follow-up${
+                          full.length === 1 ? '' : 's'
+                        } scheduled on other dates.`}
+                  </Text>
+                  {full.length > 0 && (
+                    <View style={styles.emptyActions}>
+                      <TouchableOpacity
+                        style={styles.emptyActionButton}
+                        onPress={() =>
+                          setFilterDate(dayjs().format('YYYY-MM-DD'))
+                        }>
+                        <Icon
+                          name="calendar-today"
+                          size={20}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.emptyActionText}>View Today</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.emptyActionButton}
+                        onPress={() =>
+                          setFilterDate(
+                            dayjs().add(1, 'day').format('YYYY-MM-DD'),
+                          )
+                        }>
+                        <Icon
+                          name="calendar-arrow-right"
+                          size={20}
+                          color={colors.primary}
+                        />
+                        <Text style={styles.emptyActionText}>
+                          View Tomorrow
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              }
             />
           )}
-        </View>
+        </Animated.View>
+      </View>
 
-        {/* List */}
-        {loading ? (
-          <ActivityIndicator style={{marginTop: spacing.lg}} />
-        ) : (
-          <FlatList
-            data={list}
-            keyExtractor={i => String(i.id)}
-            renderItem={renderItem}
-            contentContainerStyle={{
-              paddingTop: spacing.sm,
-              paddingBottom: spacing.lg,
+      {}
+      <Modal
+        visible={historyModalVisible}
+        animationType="slide"
+        transparent={true}
+        statusBarTranslucent={true}
+        onRequestClose={() => {
+          setHistoryModalVisible(false);
+        }}
+        onShow={() => {}}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity
+            style={styles.modalOverlayTouchable}
+            activeOpacity={1}
+            onPress={() => {
+              setHistoryModalVisible(false);
             }}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <View style={styles.emptyIconContainer}>
-                  <Icon
-                    name="calendar-check-outline"
-                    size={80}
-                    color={colors.primary}
-                  />
+          />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedPatientHistory?.patient?.name || 'Patient'} History
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setHistoryModalVisible(false);
+                }}
+                style={styles.closeButton}>
+                <Icon name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              showsVerticalScrollIndicator={true}
+              nestedScrollEnabled={true}
+              bounces={true}
+              alwaysBounceVertical={false}
+              scrollEnabled={true}
+              keyboardShouldPersistTaps="handled">
+              {}
+              <View style={styles.historySection}>
+                <View style={styles.historySectionHeader}>
+                  <Icon name="water" size={20} color={colors.primary} />
+                  <Text style={styles.historySectionTitle}>
+                    Hemoglobin (HB) History
+                  </Text>
                 </View>
-                <Text style={styles.emptyText}>
-                  {full.length === 0
-                    ? 'No Follow-ups Scheduled'
-                    : 'No Follow-ups for This Date'}
-                </Text>
-                <Text style={styles.emptySubtext}>
-                  {full.length === 0
-                    ? 'All follow-up appointments are up to date. New appointments will appear here when scheduled.'
-                    : 'No follow-up appointments are scheduled for the selected date. Try selecting a different date.'}
-                </Text>
-                {full.length > 0 && (
-                  <View style={styles.emptyActions}>
-                    <TouchableOpacity
-                      style={styles.emptyActionButton}
-                      onPress={() =>
-                        setFilterDate(dayjs().format('YYYY-MM-DD'))
-                      }>
-                      <Icon
-                        name="calendar-today"
-                        size={20}
-                        color={colors.primary}
-                      />
-                      <Text style={styles.emptyActionText}>View Today</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.emptyActionButton}
-                      onPress={() =>
-                        setFilterDate(
-                          dayjs().add(1, 'day').format('YYYY-MM-DD'),
-                        )
-                      }>
-                      <Icon
-                        name="calendar-arrow-right"
-                        size={20}
-                        color={colors.primary}
-                      />
-                      <Text style={styles.emptyActionText}>View Tomorrow</Text>
-                    </TouchableOpacity>
-                  </View>
+                {selectedPatientHistory?.screenings?.length > 0 ? (
+                  selectedPatientHistory.screenings.map((screening, index) => (
+                    <View key={screening.id} style={styles.historyItem}>
+                      <View style={styles.historyItemHeader}>
+                        <Text style={styles.historyItemDate}>
+                          {dayjs(screening.created_at).format('DD-MM-YYYY')}
+                        </Text>
+                        <View style={styles.hbValueBadge}>
+                          <Text style={styles.hbValueText}>
+                            {screening.hemoglobin} g/dL
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.historyItemDetails}>
+                        {screening.anemia_category && (
+                          <Text style={styles.historyItemDetail}>
+                            Category: {screening.anemia_category}
+                          </Text>
+                        )}
+                        {screening.severity && (
+                          <Text style={styles.historyItemDetail}>
+                            Severity: {screening.severity}
+                          </Text>
+                        )}
+                        {screening.visit_type && (
+                          <Text style={styles.historyItemDetail}>
+                            Visit Type: {screening.visit_type}
+                          </Text>
+                        )}
+                        {screening.notes && (
+                          <Text style={styles.historyItemNotes}>
+                            Notes: {screening.notes}
+                          </Text>
+                        )}
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.noHistoryText}>
+                    No screening history available
+                  </Text>
                 )}
               </View>
-            }
-          />
-        )}
-      </Animated.View>
-    </View>
+
+              {}
+              <View style={styles.historySection}>
+                <View style={styles.historySectionHeader}>
+                  <Icon name="pill" size={20} color={colors.info} />
+                  <Text style={styles.historySectionTitle}>
+                    Intervention History
+                  </Text>
+                </View>
+                {selectedPatientHistory?.interventions?.length > 0 ? (
+                  (() => {
+                    const groupedByDate = {};
+                    selectedPatientHistory.interventions.forEach(
+                      intervention => {
+                        const dateKey = dayjs(intervention.created_at).format(
+                          'DD-MM-YYYY',
+                        );
+                        if (!groupedByDate[dateKey]) {
+                          groupedByDate[dateKey] = [];
+                        }
+                        groupedByDate[dateKey].push(intervention);
+                      },
+                    );
+
+                    const sortedDates = Object.keys(groupedByDate).sort(
+                      (a, b) => {
+                        return (
+                          dayjs(b, 'DD-MM-YYYY').valueOf() -
+                          dayjs(a, 'DD-MM-YYYY').valueOf()
+                        );
+                      },
+                    );
+
+                    return sortedDates.map((dateKey, dateIndex) => {
+                      const interventionsForDate = groupedByDate[dateKey];
+
+                      return (
+                        <View key={dateKey} style={styles.historyItem}>
+                          <View style={styles.historyItemHeader}>
+                            <Text style={styles.historyItemDate}>
+                              {dateKey}
+                              {interventionsForDate.length > 1 && (
+                                <Text style={styles.multipleEntriesBadge}>
+                                  {' '}
+                                  ({interventionsForDate.length} entries)
+                                </Text>
+                              )}
+                            </Text>
+                          </View>
+                          {interventionsForDate.map(
+                            (intervention, intIndex) => (
+                              <View
+                                key={`${intervention.id}-${intIndex}`}
+                                style={styles.interventionGroup}>
+                                {interventionsForDate.length > 1 && (
+                                  <Text style={styles.interventionEntryLabel}>
+                                    Entry {intIndex + 1}:
+                                  </Text>
+                                )}
+                                <View style={styles.historyItemDetails}>
+                                  <View style={styles.interventionRow}>
+                                    <Text style={styles.interventionLabel}>
+                                      IFA:
+                                    </Text>
+                                    <Text style={styles.interventionValue}>
+                                      {intervention.ifa_yes
+                                        ? `Yes (${
+                                            intervention.ifa_quantity || 0
+                                          } tablets)`
+                                        : 'No'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.interventionRow}>
+                                    <Text style={styles.interventionLabel}>
+                                      Calcium:
+                                    </Text>
+                                    <Text style={styles.interventionValue}>
+                                      {intervention.calcium_yes
+                                        ? `Yes (${
+                                            intervention.calcium_quantity || 0
+                                          } tablets)`
+                                        : 'No'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.interventionRow}>
+                                    <Text style={styles.interventionLabel}>
+                                      Deworming:
+                                    </Text>
+                                    <Text style={styles.interventionValue}>
+                                      {intervention.deworm_yes
+                                        ? `Yes (${
+                                            intervention.deworming_date
+                                              ? dayjs(
+                                                  intervention.deworming_date,
+                                                ).format('DD-MM-YYYY')
+                                              : 'Date N/A'
+                                          })`
+                                        : 'No'}
+                                    </Text>
+                                  </View>
+                                  <View style={styles.interventionRow}>
+                                    <Text style={styles.interventionLabel}>
+                                      Therapeutic:
+                                    </Text>
+                                    <Text style={styles.interventionValue}>
+                                      {intervention.therapeutic_yes
+                                        ? 'Yes'
+                                        : 'No'}
+                                    </Text>
+                                  </View>
+                                  {intervention.therapeutic_notes && (
+                                    <Text style={styles.historyItemNotes}>
+                                      Therapeutic Notes:{' '}
+                                      {intervention.therapeutic_notes}
+                                    </Text>
+                                  )}
+                                  <View style={styles.interventionRow}>
+                                    <Text style={styles.interventionLabel}>
+                                      Referral:
+                                    </Text>
+                                    <Text style={styles.interventionValue}>
+                                      {intervention.referral_yes
+                                        ? `Yes (${
+                                            intervention.referral_facility ||
+                                            'Facility N/A'
+                                          })`
+                                        : 'No'}
+                                    </Text>
+                                  </View>
+                                </View>
+                                {intIndex < interventionsForDate.length - 1 && (
+                                  <View style={styles.interventionSeparator} />
+                                )}
+                              </View>
+                            ),
+                          )}
+                        </View>
+                      );
+                    });
+                  })()
+                ) : (
+                  <Text style={styles.noHistoryText}>
+                    No intervention history available
+                  </Text>
+                )}
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 };
 
@@ -408,16 +934,14 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
   },
-
-  // Welcome Header
 
   cardContainer: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -425,11 +949,10 @@ const styles = StyleSheet.create({
     ...shadows.md,
   },
 
-  // Date section
   dateSection: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     marginBottom: spacing.md,
     ...shadows.sm,
@@ -464,7 +987,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     ...shadows.sm,
   },
@@ -475,7 +998,7 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
   },
   calendarButton: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
     backgroundColor: colors.primary + '10',
@@ -496,7 +1019,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 
-  // List cards
   card: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
@@ -506,8 +1028,11 @@ const styles = StyleSheet.create({
     borderColor: colors.borderLight,
   },
   cardContent: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
+  },
+  cardClickableArea: {
+    flex: 1,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -597,8 +1122,25 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
     fontSize: 14,
   },
+  smsBtn: {
+    borderWidth: 1,
+    borderColor: colors.info,
+    borderRadius: borderRadius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.info + '10',
+    minWidth: 80,
+  },
+  smsBtnText: {
+    color: colors.info,
+    fontWeight: typography.weights.semibold,
+    marginLeft: spacing.xs,
+    fontSize: 12,
+  },
 
-  // Empty state
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -656,6 +1198,197 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: typography.weights.semibold,
     marginLeft: spacing.xs,
+  },
+
+  historySummary: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.xs,
+    gap: spacing.xs,
+  },
+  historyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary + '10',
+    borderRadius: borderRadius.sm,
+    paddingVertical: 2,
+    paddingHorizontal: spacing.xs,
+    gap: 4,
+  },
+  historyBadgeText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontSize: 10,
+  },
+
+  viewHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.primary + '10',
+    borderWidth: 1,
+    borderColor: colors.primary + '30',
+    borderRadius: borderRadius.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.horizontal,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  viewHistoryText: {
+    ...typography.caption,
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+    alignItems: 'stretch',
+  },
+  modalOverlayTouchable: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'transparent',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    maxHeight: Dimensions.get('window').height * 0.9,
+    minHeight: Dimensions.get('window').height * 0.7,
+    width: '100%',
+    flexDirection: 'column',
+    ...shadows.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexShrink: 0,
+  },
+  modalTitle: {
+    ...typography.title,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+  },
+  closeButton: {
+    padding: spacing.xs,
+  },
+  modalBody: {
+    flex: 1,
+  },
+  modalBodyContent: {
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.md,
+    paddingBottom: 100,
+  },
+
+  historySection: {
+    marginBottom: spacing.xl,
+  },
+  historySectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  historySectionTitle: {
+    ...typography.body,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+  },
+  historyItem: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  historyItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  historyItemDate: {
+    ...typography.body,
+    fontWeight: typography.weights.semibold,
+    color: colors.text,
+  },
+  hbValueBadge: {
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  hbValueText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: typography.weights.bold,
+  },
+  historyItemDetails: {
+    gap: spacing.xs,
+  },
+  historyItemDetail: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  historyItemNotes: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    marginTop: spacing.xs,
+  },
+  interventionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  interventionLabel: {
+    ...typography.caption,
+    fontWeight: typography.weights.semibold,
+    color: colors.text,
+    minWidth: 80,
+  },
+  interventionValue: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  noHistoryText: {
+    ...typography.body,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
+  },
+  multipleEntriesBadge: {
+    ...typography.caption,
+    color: colors.info,
+    fontWeight: typography.weights.medium,
+  },
+  interventionGroup: {
+    marginBottom: spacing.sm,
+  },
+  interventionEntryLabel: {
+    ...typography.caption,
+    fontWeight: typography.weights.semibold,
+    color: colors.info,
+    marginBottom: spacing.xs,
+  },
+  interventionSeparator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.sm,
   },
 });
 

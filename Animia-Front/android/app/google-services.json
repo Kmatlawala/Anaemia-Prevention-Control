@@ -12,7 +12,20 @@
           "package_name": "com.animiahealth"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "115421219853-091vjca1otl89as467nmge7f42sv69l5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.animiahealth",
+            "certificate_hash": "ce2ccae53d474c47f4d5e1afbab106333e7af57f"
+          }
+        },
+        {
+          "client_id": "115421219853-5ra0j5m0lpqp02s33qlm2ajo9cmkkn9j.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCEPg25B1d9C1phX5vyDZezdjULzDCUiuE"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "115421219853-5ra0j5m0lpqp02s33qlm2ajo9cmkkn9j.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -20,16 +20,13 @@ const initialState = {
   lastUpdated: null,
 };
 
-// Async thunk to fetch reports
 export const fetchReports = createAsyncThunk(
   'report/fetchReports',
   async (filters, {rejectWithValue}) => {
     try {
-      // Here you would typically make an API call
-      // For now, we'll simulate fetching reports
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API delay
 
-      // Mock data based on filters
+      await new Promise(resolve => setTimeout(resolve, 1000)); 
+
       const mockReports = [
         {
           id: '1',
@@ -45,7 +42,7 @@ export const fetchReports = createAsyncThunk(
           beneficiaryName: 'Test Beneficiary 2',
           category: 'Under5',
           status: 'mild',
-          location: 'Okpad',
+          location: 'Olpad',
           date: '2024-01-16',
           interventions: ['Vaccination', 'Growth Monitoring'],
         },
@@ -58,13 +55,12 @@ export const fetchReports = createAsyncThunk(
   },
 );
 
-// Async thunk to generate report
 export const generateReport = createAsyncThunk(
   'report/generateReport',
   async (reportData, {rejectWithValue}) => {
     try {
-      // Here you would typically make an API call to generate report
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate report generation
+      
+      await new Promise(resolve => setTimeout(resolve, 2000)); 
 
       const report = {
         id: Date.now().toString(),
@@ -122,7 +118,7 @@ const reportSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      // Fetch reports
+      
       .addCase(fetchReports.pending, state => {
         state.loading = true;
         state.error = null;
@@ -136,7 +132,7 @@ const reportSlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Generate report
+      
       .addCase(generateReport.pending, state => {
         state.loading = true;
         state.error = null;
@@ -166,7 +162,6 @@ export const {
   deleteReport,
 } = reportSlice.actions;
 
-// Selectors
 export const selectReportFilters = state => state.report.filters;
 export const selectReports = state => state.report.reports;
 export const selectCurrentReport = state => state.report.currentReport;
@@ -175,12 +170,11 @@ export const selectReportError = state => state.report.error;
 export const selectLastUpdated = state => state.report.lastUpdated;
 export const selectReportState = state => state.report;
 
-// Memoized selectors for filtered data
 export const selectFilteredReports = state => {
   const {reports, filters} = state.report;
 
   return reports.filter(report => {
-    // Filter by beneficiary type
+    
     if (
       filters.beneficiaryType !== 'all' &&
       report.category !== filters.beneficiaryType
@@ -188,7 +182,6 @@ export const selectFilteredReports = state => {
       return false;
     }
 
-    // Filter by intervention status
     if (
       filters.interventionStatus !== 'all' &&
       report.status !== filters.interventionStatus
@@ -196,12 +189,10 @@ export const selectFilteredReports = state => {
       return false;
     }
 
-    // Filter by location
     if (filters.location !== 'all' && report.location !== filters.location) {
       return false;
     }
 
-    // Filter by date range
     if (
       filters.dateRange.startDate &&
       report.date < filters.dateRange.startDate

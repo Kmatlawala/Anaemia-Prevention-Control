@@ -1,7 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useCallback } from 'react';
 
-// Auth hooks
 export const useAuth = () => {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector(state => state.auth.isAuthenticated);
@@ -32,7 +31,6 @@ export const useAuthActions = () => {
   };
 };
 
-// App hooks
 export const useApp = () => {
   const dispatch = useDispatch();
   const isOnline = useSelector(state => state.app.isOnline);
@@ -68,7 +66,6 @@ export const useAppActions = () => {
   };
 };
 
-// Report hooks
 export const useReports = () => {
   const dispatch = useDispatch();
   const reports = useSelector(state => state.report.reports);
@@ -100,7 +97,6 @@ export const useReportActions = () => {
   };
 };
 
-// Beneficiary hooks
 export const useBeneficiaries = () => {
   const dispatch = useDispatch();
   const beneficiaries = useSelector(state => state.beneficiary.beneficiaries);
@@ -134,7 +130,6 @@ export const useBeneficiaryActions = () => {
   };
 };
 
-// Combined hooks for common use cases
 export const useDashboard = () => {
   const auth = useAuth();
   const app = useApp();

@@ -1,20 +1,17 @@
 import { createAction } from '@reduxjs/toolkit';
 
-// Action Types
 export const SET_FILTERS = 'report/setFilters';
 export const RESET_FILTERS = 'report/resetFilters';
 export const SET_CURRENT_REPORT = 'report/setCurrentReport';
 export const SET_LOADING = 'report/setLoading';
 export const SET_ERROR = 'report/setError';
 
-// Action Creators
 export const setFilters = createAction(SET_FILTERS);
 export const resetFilters = createAction(RESET_FILTERS);
 export const setCurrentReport = createAction(SET_CURRENT_REPORT);
 export const setLoading = createAction(SET_LOADING);
 export const setError = createAction(SET_ERROR);
 
-// Initial State
 const initialState = {
   filters: {
     dateRange: {
@@ -32,7 +29,6 @@ const initialState = {
   error: null,
 };
 
-// Reducer
 export default function reportReducer(state = initialState, action) {
   switch (action.type) {
     case SET_FILTERS:
@@ -67,7 +63,6 @@ export default function reportReducer(state = initialState, action) {
   }
 }
 
-// Selectors
 export const selectReportFilters = (state) => state.report.filters;
 export const selectCurrentReport = (state) => state.report.currentReport;
 export const selectReportLoading = (state) => state.report.loading;

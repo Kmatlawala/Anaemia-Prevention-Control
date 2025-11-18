@@ -32,7 +32,6 @@ const EnhancedSendSMS = ({
   const [sendToAllContacts, setSendToAllContacts] = useState(true);
   const [smsResults, setSmsResults] = useState([]);
 
-  // Get all contacts from beneficiary
   const getBeneficiaryContacts = () => {
     if (!beneficiary) return [];
 
@@ -71,7 +70,7 @@ const EnhancedSendSMS = ({
     }
 
     if (sendToAllContacts && beneficiary) {
-      // Send to all beneficiary contacts (permission-free)
+      
       setSending(true);
       setSmsResults([]);
 
@@ -96,10 +95,6 @@ const EnhancedSendSMS = ({
           [{text: 'OK', onPress: handleClose}],
         );
       } catch (error) {
-        console.error(
-          '[EnhancedSendSMS] Error sending to all contacts:',
-          error,
-        );
         Alert.alert(
           'Error',
           'Failed to send SMS to all contacts: ' + error.message,
@@ -108,7 +103,7 @@ const EnhancedSendSMS = ({
         setSending(false);
       }
     } else {
-      // Send to single phone number
+      
       if (!phoneNumber.trim()) {
         Alert.alert('Error', 'Please enter a phone number');
         return;
@@ -136,16 +131,11 @@ const EnhancedSendSMS = ({
         ]);
 
         if (success) {
-          console.log('[EnhancedSendSMS] SMS sent successfully!');
           handleClose();
         } else {
-          console.error(
-            '[EnhancedSendSMS] Failed to send SMS. Please try again.',
-          );
-        }
+          }
       } catch (error) {
-        console.error('[EnhancedSendSMS] Failed to send SMS:', error.message);
-      } finally {
+        } finally {
         setSending(false);
       }
     }
@@ -178,7 +168,7 @@ const EnhancedSendSMS = ({
           </View>
 
           <ScrollView style={styles.content}>
-            {/* Beneficiary Info */}
+            {}
             {beneficiary && (
               <View style={styles.beneficiaryInfo}>
                 <Text style={styles.beneficiaryName}>{beneficiary.name}</Text>
@@ -188,7 +178,7 @@ const EnhancedSendSMS = ({
               </View>
             )}
 
-            {/* Send Options */}
+            {}
             {beneficiary && beneficiaryContacts.length > 0 && (
               <View style={styles.optionsContainer}>
                 <Text style={styles.sectionTitle}>Send Options:</Text>
@@ -247,7 +237,7 @@ const EnhancedSendSMS = ({
               </View>
             )}
 
-            {/* Contact List */}
+            {}
             {sendToAllContacts && beneficiaryContacts.length > 0 && (
               <View style={styles.contactsContainer}>
                 <Text style={styles.sectionTitle}>Contacts:</Text>
@@ -262,7 +252,7 @@ const EnhancedSendSMS = ({
               </View>
             )}
 
-            {/* Single Phone Number Input */}
+            {}
             {!sendToAllContacts && (
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Phone Number</Text>
@@ -277,7 +267,7 @@ const EnhancedSendSMS = ({
               </View>
             )}
 
-            {/* Message Input */}
+            {}
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Message</Text>
               <TextInput
@@ -292,7 +282,7 @@ const EnhancedSendSMS = ({
               <Text style={styles.characterCount}>{message.length}/160</Text>
             </View>
 
-            {/* SMS Results */}
+            {}
             {smsResults.length > 0 && (
               <View style={styles.resultsContainer}>
                 <Text style={styles.sectionTitle}>SMS Results:</Text>
@@ -369,7 +359,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -384,13 +374,13 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     maxHeight: 400,
   },
   beneficiaryInfo: {
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderRadius: 8,
     marginBottom: spacing.md,
@@ -417,7 +407,7 @@ const styles = StyleSheet.create({
   optionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
     borderRadius: 8,
     marginBottom: spacing.xs,
@@ -441,7 +431,7 @@ const styles = StyleSheet.create({
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
     borderRadius: 8,
@@ -465,7 +455,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     fontSize: typography.sizes.md,
     color: colors.text,
@@ -483,7 +473,7 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     marginTop: spacing.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     backgroundColor: colors.surface,
     borderRadius: 8,
@@ -491,7 +481,7 @@ const styles = StyleSheet.create({
   resultItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
     marginBottom: spacing.xs,
   },
@@ -502,7 +492,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,

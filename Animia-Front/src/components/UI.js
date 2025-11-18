@@ -19,17 +19,16 @@ export const PrimaryButton = ({ label, onPress }) => (
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.lg,
     backgroundColor: colors.background,
   },
   primaryBtn: {
     backgroundColor: colors.primaryMid,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderRadius: 12,
     alignItems: 'center',
   },
 });
-
 

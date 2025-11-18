@@ -49,7 +49,10 @@ export default function ReportFilters({navigation}) {
       <Header
         title="Filters"
         variant="back"
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => {
+          
+          navigation.navigate('Reports');
+        }}
       />
       <View style={styles.card}>
         <Text
@@ -122,7 +125,6 @@ export default function ReportFilters({navigation}) {
               {label: 'Pregnant', value: 'Pregnant'},
               {label: 'Under5', value: 'Under5'},
               {label: 'Adolescent', value: 'Adolescent'},
-              {label: 'WoRA', value: 'WoRA'},
             ]}
             style={{flex: 1, marginRight: spacing.sm}}
           />
@@ -147,9 +149,9 @@ export default function ReportFilters({navigation}) {
           options={[
             {label: 'All', value: 'all'},
             {label: 'Mahuva', value: 'Mahuva'},
-            {label: 'Okpad', value: 'Okpad'},
+            {label: 'Olpad', value: 'Olpad'},
             {label: 'Chorasi', value: 'Chorasi'},
-            {label: 'Umerpada', value: 'Umerpada'},
+            {label: 'Umarpada', value: 'Umarpada'},
           ]}
           style={{marginTop: spacing.sm}}
         />
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     margin: spacing.md,
     borderWidth: 1,
@@ -184,7 +186,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
   },
   dateLabel: {color: colors.text, marginBottom: 4},
@@ -193,7 +195,7 @@ const styles = StyleSheet.create({
   resetBtn: {
     flex: 1,
     backgroundColor: 'transparent',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderRadius: 8,
     alignItems: 'center',
@@ -203,7 +205,7 @@ const styles = StyleSheet.create({
   applyBtn: {
     flex: 1,
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderRadius: 8,
     alignItems: 'center',

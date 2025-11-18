@@ -33,29 +33,25 @@ import {
 
 export default function ReduxExample() {
   const dispatch = useDispatch();
-  
-  // Auth state
+
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const user = useSelector(selectUser);
   const authLoading = useSelector(selectAuthLoading);
-  
-  // Beneficiary state
+
   const beneficiaries = useSelector(selectBeneficiaries);
   const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
   const beneficiaryError = useSelector(selectBeneficiaryError);
   const beneficiaryFilters = useSelector(selectBeneficiaryFilters);
-  
-  // Report state
+
   const reports = useSelector(selectReports);
   const reportLoading = useSelector(selectReportLoading);
   const reportError = useSelector(selectReportError);
-  
-  // App state
+
   const isOnline = useSelector(selectIsOnline);
   const syncStatus = useSelector(selectSyncStatus);
   
   useEffect(() => {
-    // Initialize app when component mounts
+    
     dispatch(initializeApp());
   }, [dispatch]);
   
@@ -146,7 +142,7 @@ export default function ReduxExample() {
     <View style={styles.container}>
       <Text style={styles.title}>Redux Toolkit Example</Text>
       
-      {/* Auth Section */}
+      {}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Authentication</Text>
         <Text>Status: {isAuthenticated ? 'Authenticated' : 'Not Authenticated'}</Text>
@@ -164,7 +160,7 @@ export default function ReduxExample() {
         </TouchableOpacity>
       </View>
       
-      {/* Beneficiaries Section */}
+      {}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Beneficiaries</Text>
         <Text>Count: {beneficiaries.length}</Text>
@@ -195,7 +191,7 @@ export default function ReduxExample() {
         </TouchableOpacity>
       </View>
       
-      {/* Reports Section */}
+      {}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Reports</Text>
         <Text>Count: {reports.length}</Text>
@@ -219,7 +215,7 @@ export default function ReduxExample() {
         </TouchableOpacity>
       </View>
       
-      {/* App Section */}
+      {}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>App Status</Text>
         <Text>Online: {isOnline ? 'Yes' : 'No'}</Text>

@@ -1,18 +1,15 @@
 import { createAction } from '@reduxjs/toolkit';
 
-// Action Types
 export const LOGIN_SUCCESS = 'auth/loginSuccess';
 export const LOGIN_FAILURE = 'auth/loginFailure';
 export const LOGOUT = 'auth/logout';
 export const AUTH_INITIALIZED = 'auth/initialized';
 
-// Action Creators
 export const loginSuccess = createAction(LOGIN_SUCCESS);
 export const loginFailure = createAction(LOGIN_FAILURE);
 export const logout = createAction(LOGOUT);
 export const authInitialized = createAction(AUTH_INITIALIZED);
 
-// Initial State
 const initialState = {
   isAuthenticated: false,
   user: null,
@@ -23,7 +20,6 @@ const initialState = {
   isInitialized: false
 };
 
-// Reducer
 export default function authReducer(state = initialState, action) {
   switch (action.type) {
     case LOGIN_SUCCESS:
@@ -63,7 +59,6 @@ export default function authReducer(state = initialState, action) {
   }
 }
 
-// Selectors
 export const selectIsAuthenticated = (state) => state.auth.isAuthenticated;
 export const selectUser = (state) => state.auth.user;
 export const selectRole = (state) => state.auth.role;

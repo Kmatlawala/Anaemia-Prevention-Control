@@ -19,10 +19,6 @@ import {
   getSMSStatistics,
 } from '../utils/enhancedSMS';
 
-/**
- * Enhanced SMS Component with Data Storage
- * Supports sending SMS to beneficiary contacts and storing data
- */
 const EnhancedSMSComponent = ({
   beneficiaries = [],
   onSMSComplete = () => {},
@@ -44,13 +40,9 @@ const EnhancedSMSComponent = ({
       const stats = await getSMSStatistics();
       setSmsStats(stats);
     } catch (error) {
-      console.error('Error loading SMS statistics:', error);
-    }
+      }
   };
 
-  /**
-   * Send SMS to single beneficiary with all contacts
-   */
   const handleSendToBeneficiary = async beneficiary => {
     if (!message.trim()) {
       Alert.alert('Error', 'Please enter a message');
@@ -79,21 +71,13 @@ const EnhancedSMSComponent = ({
         beneficiary: beneficiary.name,
         result,
       });
-      loadSMSStatistics(); // Refresh stats
+      loadSMSStatistics(); 
     } catch (error) {
-      console.error('SMS send error:', error);
-      console.error(
-        '[EnhancedSMSComponent] Failed to send SMS:',
-        error.message,
-      );
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Send bulk SMS to all beneficiaries
-   */
   const handleSendBulkSMS = async () => {
     if (!message.trim()) {
       Alert.alert('Error', 'Please enter a message');
@@ -125,21 +109,13 @@ const EnhancedSMSComponent = ({
       );
 
       onSMSComplete({type: 'bulk', count: beneficiaries.length, result});
-      loadSMSStatistics(); // Refresh stats
+      loadSMSStatistics(); 
     } catch (error) {
-      console.error('Bulk SMS error:', error);
-      console.error(
-        '[EnhancedSMSComponent] Failed to send bulk SMS:',
-        error.message,
-      );
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Send registration SMS
-   */
   const handleRegistrationSMS = async beneficiary => {
     setIsLoading(true);
     try {
@@ -161,19 +137,11 @@ const EnhancedSMSComponent = ({
       });
       loadSMSStatistics();
     } catch (error) {
-      console.error('Registration SMS error:', error);
-      console.error(
-        '[EnhancedSMSComponent] Failed to send registration SMS:',
-        error.message,
-      );
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Send follow-up SMS
-   */
   const handleFollowUpSMS = async (beneficiary, followUp) => {
     setIsLoading(true);
     try {
@@ -192,12 +160,7 @@ const EnhancedSMSComponent = ({
       onSMSComplete({type: 'follow_up', beneficiary: beneficiary.name, result});
       loadSMSStatistics();
     } catch (error) {
-      console.error('Follow-up SMS error:', error);
-      console.error(
-        '[EnhancedSMSComponent] Failed to send follow-up SMS:',
-        error.message,
-      );
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
@@ -206,7 +169,7 @@ const EnhancedSMSComponent = ({
     <ScrollView style={[styles.container, style]}>
       <Text style={styles.title}>Enhanced SMS with Storage</Text>
 
-      {/* SMS Statistics */}
+      {}
       {smsStats && (
         <View style={styles.statsContainer}>
           <Text style={styles.statsTitle}>SMS Statistics</Text>
@@ -223,7 +186,7 @@ const EnhancedSMSComponent = ({
         </View>
       )}
 
-      {/* Send Method Selection */}
+      {}
       <View style={styles.methodContainer}>
         <Text style={styles.label}>Send Method:</Text>
         <View style={styles.methodButtons}>
@@ -258,7 +221,7 @@ const EnhancedSMSComponent = ({
         </View>
       </View>
 
-      {/* SMS Type Selection */}
+      {}
       <View style={styles.typeContainer}>
         <Text style={styles.label}>SMS Type:</Text>
         <View style={styles.typeButtons}>
@@ -288,7 +251,7 @@ const EnhancedSMSComponent = ({
         </View>
       </View>
 
-      {/* Message Input */}
+      {}
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Message:</Text>
         <TextInput
@@ -302,7 +265,7 @@ const EnhancedSMSComponent = ({
         />
       </View>
 
-      {/* Action Buttons */}
+      {}
       <View style={styles.buttonContainer}>
         {beneficiaries.length > 0 && (
           <TouchableOpacity
@@ -329,7 +292,7 @@ const EnhancedSMSComponent = ({
         )}
       </View>
 
-      {/* Individual Beneficiary Actions */}
+      {}
       {beneficiaries.slice(0, 3).map((beneficiary, index) => (
         <View key={beneficiary.id || index} style={styles.beneficiaryContainer}>
           <Text style={styles.beneficiaryName}>{beneficiary.name}</Text>

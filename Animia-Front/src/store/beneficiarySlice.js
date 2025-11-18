@@ -27,7 +27,6 @@ const initialState = {
   lastUpdated: null,
 };
 
-// Async thunk to fetch beneficiaries
 export const fetchBeneficiaries = createAsyncThunk(
   'beneficiary/fetchBeneficiaries',
   async (filters, {rejectWithValue}) => {
@@ -35,17 +34,13 @@ export const fetchBeneficiaries = createAsyncThunk(
       const online = await isOnline();
 
       if (online) {
-        // Try to fetch from API first
+        
         try {
           const beneficiaries = await API.getBeneficiariesWithData();
           await cacheBeneficiaries(beneficiaries);
           return beneficiaries;
         } catch (apiError) {
-          console.warn(
-            '[BeneficiarySlice] API fetch failed, trying cache:',
-            apiError,
-          );
-          // Fall back to cache if API fails
+          
           const cached = await getCachedBeneficiaries();
           if (cached) {
             return cached;
@@ -53,9 +48,9 @@ export const fetchBeneficiaries = createAsyncThunk(
           throw apiError;
         }
       } else {
-        // Offline: use cached data
+        
         const cached = await getCachedBeneficiaries();
-        // Return cached data (even if empty array) for offline mode
+        
         return cached || [];
       }
     } catch (error) {
@@ -64,7 +59,6 @@ export const fetchBeneficiaries = createAsyncThunk(
   },
 );
 
-// Async thunk to add beneficiary
 export const addBeneficiary = createAsyncThunk(
   'beneficiary/addBeneficiary',
   async (beneficiaryData, {rejectWithValue}) => {
@@ -72,49 +66,42 @@ export const addBeneficiary = createAsyncThunk(
       const online = await isOnline();
 
       if (online) {
-        // Online: try API first
+        
         try {
           const newBeneficiary = await API.createBeneficiary(beneficiaryData);
           return newBeneficiary;
         } catch (apiError) {
-          console.warn(
-            '[BeneficiarySlice] API add failed, queuing for offline sync:',
-            apiError,
-          );
-          // Queue for offline sync
+          
           await addToOfflineQueue({
             operation: 'CREATE',
             entity: 'beneficiaries',
             payload: beneficiaryData,
           });
 
-          // Return local version for immediate UI update
           return {
             id: Date.now().toString(),
             ...beneficiaryData,
             createdAt: new Date().toISOString(),
             lastVisit: new Date().toISOString(),
-            _pending: true, // Mark as pending sync
+            _pending: true, 
           };
         }
       } else {
-        // Offline: queue for sync
+        
         await addToOfflineQueue({
           operation: 'CREATE',
           entity: 'beneficiaries',
           payload: beneficiaryData,
         });
 
-        // Return local version for immediate UI update
         const localBeneficiary = {
           id: Date.now().toString(),
           ...beneficiaryData,
           createdAt: new Date().toISOString(),
           lastVisit: new Date().toISOString(),
-          _pending: true, // Mark as pending sync
+          _pending: true, 
         };
 
-        // Trigger sync if network becomes available
         triggerSyncWhenOnline(async () => {
           await runSyncOnce();
         });
@@ -127,7 +114,6 @@ export const addBeneficiary = createAsyncThunk(
   },
 );
 
-// Async thunk to update beneficiary
 export const updateBeneficiary = createAsyncThunk(
   'beneficiary/updateBeneficiary',
   async ({id, updates}, {rejectWithValue}) => {
@@ -135,9 +121,8 @@ export const updateBeneficiary = createAsyncThunk(
       const online = await isOnline();
 
       if (online) {
-        // Online: try API first
+        
         try {
-          console.log('[BeneficiarySlice] Updating beneficiary via API');
           const updatedBeneficiary = await API.updateBeneficiary(id, updates);
           return {
             id,
@@ -145,18 +130,13 @@ export const updateBeneficiary = createAsyncThunk(
             updatedAt: new Date().toISOString(),
           };
         } catch (apiError) {
-          console.warn(
-            '[BeneficiarySlice] API update failed, queuing for offline sync:',
-            apiError,
-          );
-          // Queue for offline sync
+          
           await addToOfflineQueue({
             operation: 'UPDATE',
             entity: 'beneficiaries',
             payload: {id, updates},
           });
 
-          // Return local update for immediate UI update
           return {
             id,
             updates: {...updates, _pending: true},
@@ -164,28 +144,20 @@ export const updateBeneficiary = createAsyncThunk(
           };
         }
       } else {
-        // Offline: queue for sync
-        console.log(
-          '[BeneficiarySlice] Offline mode - queuing beneficiary update for sync',
-        );
+        
         await addToOfflineQueue({
           operation: 'UPDATE',
           entity: 'beneficiaries',
           payload: {id, updates},
         });
 
-        // Return local update for immediate UI update
         const localUpdate = {
           id,
           updates: {...updates, _pending: true},
           updatedAt: new Date().toISOString(),
         };
 
-        // Trigger sync if network becomes available
         triggerSyncWhenOnline(async () => {
-          console.log(
-            '[BeneficiarySlice] Triggering sync after update beneficiary',
-          );
           await runSyncOnce();
         });
 
@@ -197,7 +169,6 @@ export const updateBeneficiary = createAsyncThunk(
   },
 );
 
-// Async thunk to add intervention
 export const addIntervention = createAsyncThunk(
   'beneficiary/addIntervention',
   async (interventionData, {rejectWithValue}) => {
@@ -205,58 +176,44 @@ export const addIntervention = createAsyncThunk(
       const online = await isOnline();
 
       if (online) {
-        // Online: try API first
+        
         try {
-          console.log('[BeneficiarySlice] Adding intervention via API');
           const newIntervention = await API.addIntervention(
             interventionData.beneficiaryId,
             interventionData,
           );
           return newIntervention;
         } catch (apiError) {
-          console.warn(
-            '[BeneficiarySlice] API add intervention failed, queuing for offline sync:',
-            apiError,
-          );
-          // Queue for offline sync
+          
           await addToOfflineQueue({
             operation: 'CREATE',
             entity: 'interventions',
             payload: interventionData,
           });
 
-          // Return local version for immediate UI update
           return {
             id: Date.now().toString(),
             ...interventionData,
             createdAt: new Date().toISOString(),
-            _pending: true, // Mark as pending sync
+            _pending: true, 
           };
         }
       } else {
-        // Offline: queue for sync
-        console.log(
-          '[BeneficiarySlice] Offline mode - queuing intervention for sync',
-        );
+        
         await addToOfflineQueue({
           operation: 'CREATE',
           entity: 'interventions',
           payload: interventionData,
         });
 
-        // Return local version for immediate UI update
         const localIntervention = {
           id: Date.now().toString(),
           ...interventionData,
           createdAt: new Date().toISOString(),
-          _pending: true, // Mark as pending sync
+          _pending: true, 
         };
 
-        // Trigger sync if network becomes available
         triggerSyncWhenOnline(async () => {
-          console.log(
-            '[BeneficiarySlice] Triggering sync after add intervention',
-          );
           await runSyncOnce();
         });
 
@@ -268,7 +225,6 @@ export const addIntervention = createAsyncThunk(
   },
 );
 
-// Async thunk to add screening
 export const addScreening = createAsyncThunk(
   'beneficiary/addScreening',
   async (screeningData, {rejectWithValue}) => {
@@ -276,56 +232,44 @@ export const addScreening = createAsyncThunk(
       const online = await isOnline();
 
       if (online) {
-        // Online: try API first
+        
         try {
-          console.log('[BeneficiarySlice] Adding screening via API');
           const newScreening = await API.addScreening(
             screeningData.beneficiaryId,
             screeningData,
           );
           return newScreening;
         } catch (apiError) {
-          console.warn(
-            '[BeneficiarySlice] API add screening failed, queuing for offline sync:',
-            apiError,
-          );
-          // Queue for offline sync
+          
           await addToOfflineQueue({
             operation: 'CREATE',
             entity: 'screenings',
             payload: screeningData,
           });
 
-          // Return local version for immediate UI update
           return {
             id: Date.now().toString(),
             ...screeningData,
             createdAt: new Date().toISOString(),
-            _pending: true, // Mark as pending sync
+            _pending: true, 
           };
         }
       } else {
-        // Offline: queue for sync
-        console.log(
-          '[BeneficiarySlice] Offline mode - queuing screening for sync',
-        );
+        
         await addToOfflineQueue({
           operation: 'CREATE',
           entity: 'screenings',
           payload: screeningData,
         });
 
-        // Return local version for immediate UI update
         const localScreening = {
           id: Date.now().toString(),
           ...screeningData,
           createdAt: new Date().toISOString(),
-          _pending: true, // Mark as pending sync
+          _pending: true, 
         };
 
-        // Trigger sync if network becomes available
         triggerSyncWhenOnline(async () => {
-          console.log('[BeneficiarySlice] Triggering sync after add screening');
           await runSyncOnce();
         });
 
@@ -337,12 +281,10 @@ export const addScreening = createAsyncThunk(
   },
 );
 
-// Async thunk to load cached data on app initialization
 export const loadCachedData = createAsyncThunk(
   'beneficiary/loadCachedData',
   async (_, {rejectWithValue}) => {
     try {
-      console.log('[BeneficiarySlice] Loading cached data on initialization');
       const [cachedBeneficiaries, cachedCurrentBeneficiary] = await Promise.all(
         [getCachedBeneficiaries(), getCachedCurrentBeneficiary()],
       );
@@ -363,14 +305,14 @@ const beneficiarySlice = createSlice({
   reducers: {
     setCurrentBeneficiary: (state, action) => {
       state.currentBeneficiary = action.payload;
-      // Cache the current beneficiary
+      
       if (action.payload) {
         cacheCurrentBeneficiary(action.payload);
       }
     },
     clearCurrentBeneficiary: state => {
       state.currentBeneficiary = null;
-      // Clear cached current beneficiary
+      
       cacheCurrentBeneficiary(null);
     },
     setFilters: (state, action) => {
@@ -411,7 +353,7 @@ const beneficiarySlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      // Fetch beneficiaries
+      
       .addCase(fetchBeneficiaries.pending, state => {
         state.loading = true;
         state.error = null;
@@ -421,14 +363,13 @@ const beneficiarySlice = createSlice({
         state.loading = false;
         state.lastUpdated = new Date().toISOString();
 
-        // Update cache with fetched beneficiaries
         cacheBeneficiaries(action.payload);
       })
       .addCase(fetchBeneficiaries.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      // Add beneficiary
+      
       .addCase(addBeneficiary.pending, state => {
         state.loading = true;
         state.error = null;
@@ -438,14 +379,13 @@ const beneficiarySlice = createSlice({
         state.loading = false;
         state.lastUpdated = new Date().toISOString();
 
-        // Update cache with new beneficiaries
         cacheBeneficiaries(state.beneficiaries);
       })
       .addCase(addBeneficiary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      // Update beneficiary
+      
       .addCase(updateBeneficiary.pending, state => {
         state.loading = true;
         state.error = null;
@@ -463,14 +403,13 @@ const beneficiarySlice = createSlice({
         state.loading = false;
         state.lastUpdated = new Date().toISOString();
 
-        // Update cache with updated beneficiaries
         cacheBeneficiaries(state.beneficiaries);
       })
       .addCase(updateBeneficiary.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
-      // Add intervention
+      
       .addCase(addIntervention.pending, state => {
         state.loading = true;
         state.error = null;
@@ -484,13 +423,13 @@ const beneficiarySlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Add screening
+      
       .addCase(addScreening.pending, state => {
         state.loading = true;
         state.error = null;
       })
       .addCase(addScreening.fulfilled, (state, action) => {
-        // Add screening to interventions array for now (can create separate screenings array later)
+        
         state.interventions.unshift(action.payload);
         state.loading = false;
         state.lastUpdated = new Date().toISOString();
@@ -499,7 +438,7 @@ const beneficiarySlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Load cached data
+      
       .addCase(loadCachedData.pending, state => {
         state.loading = true;
         state.error = null;
@@ -529,7 +468,6 @@ export const {
   deleteBeneficiary,
 } = beneficiarySlice.actions;
 
-// Selectors
 export const selectBeneficiaries = state => state.beneficiary.beneficiaries;
 export const selectCurrentBeneficiary = state =>
   state.beneficiary.currentBeneficiary;
@@ -540,12 +478,11 @@ export const selectBeneficiaryFilters = state => state.beneficiary.filters;
 export const selectLastUpdated = state => state.beneficiary.lastUpdated;
 export const selectBeneficiaryState = state => state.beneficiary;
 
-// Memoized selectors for filtered data
 export const selectFilteredBeneficiaries = state => {
   const {beneficiaries, filters} = state.beneficiary;
 
   return beneficiaries.filter(beneficiary => {
-    // Filter by search query
+    
     if (
       filters.searchQuery &&
       !beneficiary.name
@@ -555,12 +492,10 @@ export const selectFilteredBeneficiaries = state => {
       return false;
     }
 
-    // Filter by status
     if (filters.status !== 'all' && beneficiary.status !== filters.status) {
       return false;
     }
 
-    // Filter by category
     if (
       filters.category !== 'all' &&
       beneficiary.category !== filters.category
@@ -568,7 +503,6 @@ export const selectFilteredBeneficiaries = state => {
       return false;
     }
 
-    // Filter by location
     if (
       filters.location !== 'all' &&
       beneficiary.location !== filters.location

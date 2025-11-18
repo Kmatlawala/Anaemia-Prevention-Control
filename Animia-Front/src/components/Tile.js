@@ -1,4 +1,4 @@
-// src/components/Tile.js
+
 import React from 'react';
 import {TouchableOpacity, View, Text, StyleSheet, Animated} from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   },
   tileContainer: {
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   },
   gradientTile: {
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',

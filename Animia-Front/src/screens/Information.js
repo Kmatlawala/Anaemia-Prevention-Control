@@ -1,5 +1,4 @@
-// src/screens/Information.js
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   Linking,
   Dimensions,
+  Animated,
 } from 'react-native';
 import Header from '../components/Header';
 import {
@@ -19,16 +19,17 @@ import {
   platform,
 } from '../theme/theme';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import {getRole} from '../utils/role';
+import LinearGradient from 'react-native-linear-gradient';
 
 const {width: screenWidth} = Dimensions.get('window');
 
-/** -------- Content (EN / GU / HI) -------- */
 const CONTENT = {
   pregnant: {
     en: {
       title: 'Pregnant Women',
       subtitle: 'IFA • ANC • Nutrition',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'IFA and Calcium Supplementation',
@@ -81,7 +82,7 @@ const CONTENT = {
     gu: {
       title: 'ગર્ભવતી સ્ત્રીઓ',
       subtitle: 'IFA • ANC • પોષણ',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'આઇએફએ અને કેલ્શિયમ સપ્લિમેન્ટેશન',
@@ -134,7 +135,7 @@ const CONTENT = {
     hi: {
       title: 'गर्भवती महिलाएँ',
       subtitle: 'IFA • ANC • पोषण',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'आईएफए और कैल्शियम सप्लीमेंटेशन',
@@ -189,7 +190,7 @@ const CONTENT = {
     en: {
       title: 'Under-5 Children',
       subtitle: 'Breastfeeding • Complementary feeding',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'IFA Supplementation',
@@ -224,7 +225,7 @@ const CONTENT = {
     gu: {
       title: '૫ વર્ષથી ઓછા બાળકો',
       subtitle: 'સ્તનપાન • પુરક આહાર',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'આઇએફએ સપ્લિમેન્ટેશન',
@@ -259,7 +260,7 @@ const CONTENT = {
     hi: {
       title: '५ वर्ष से कम बच्चे',
       subtitle: 'स्तनपान • पूरक आहार',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'आईएफए सप्लीमेंटेशन',
@@ -296,7 +297,7 @@ const CONTENT = {
     en: {
       title: 'Adolescent Girls',
       subtitle: 'Weekly IFA • Healthy diet',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'IFA Supplementation',
@@ -336,7 +337,7 @@ const CONTENT = {
     gu: {
       title: 'કિશોરીઓ',
       subtitle: 'સપ્તાહિક IFA • હેલ્ધી ડાયેટ',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'આઇએફએ સપ્લિમેન્ટેશન',
@@ -376,7 +377,7 @@ const CONTENT = {
     hi: {
       title: 'किशोरियाँ',
       subtitle: 'साप्ताहिक IFA • हेल्दी डाइट',
-      video: 'https://youtu.be/asNax0ZpcMs?si=cX1t3dPEZnpfIiPN',
+      video: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
       sections: [
         {
           title: 'आईएफए सप्लीमेंटेशन',
@@ -426,8 +427,38 @@ const LANGS = [
 ];
 
 const Information = ({navigation}) => {
-  const [lang, setLang] = useState('gu'); // default GU
-  const [category, setCategory] = useState(''); // default none
+  const [lang, setLang] = useState('gu');
+  const [category, setCategory] = useState('');
+  const [isPatient, setIsPatient] = useState(false);
+  const pulseAnim = React.useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    (async () => {
+      const r = await getRole();
+      setIsPatient(String(r || '').toLowerCase() === 'patient');
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (isPatient) {
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, {
+            toValue: 1.05,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 1000,
+            useNativeDriver: true,
+          }),
+        ]),
+      );
+      pulse.start();
+      return () => pulse.stop();
+    }
+  }, [isPatient]);
 
   const catOptions = useMemo(
     () => [
@@ -476,8 +507,47 @@ const Information = ({navigation}) => {
       <ScrollView
         contentContainerStyle={{paddingBottom: spacing.lg}}
         showsVerticalScrollIndicator={false}>
-        {/* Top: title + language */}
-        <View style={styles.topRow}>
+        {}
+        {isPatient && (
+          <Animated.View
+            style={[
+              styles.patientBanner,
+              {
+                transform: [{scale: pulseAnim}],
+              },
+            ]}>
+            <LinearGradient
+              colors={[
+                colors.primary,
+                colors.primary + 'DD',
+                colors.primary + 'BB',
+              ]}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 0}}
+              style={styles.patientBannerGradient}>
+              <View style={styles.patientBannerContent}>
+                <View style={styles.patientBannerIconContainer}>
+                  <Icon name="information" size={32} color={colors.white} />
+                </View>
+                <View style={styles.patientBannerTextContainer}>
+                  <Text style={styles.patientBannerTitle}>
+                    Important Health Information
+                  </Text>
+                  <Text style={styles.patientBannerSubtitle}>
+                    Learn about IFA, nutrition, and follow-up care for your
+                    health
+                  </Text>
+                </View>
+                <View style={styles.patientBannerArrow}>
+                  <Icon name="arrow-down" size={24} color={colors.white} />
+                </View>
+              </View>
+            </LinearGradient>
+          </Animated.View>
+        )}
+
+        {}
+        <View style={[styles.topRow, isPatient && styles.topRowPatient]}>
           <View style={styles.titleContainer}>
             <View style={styles.titleIconContainer}>
               <Icon name="book-open-variant" size={15} color={colors.white} />
@@ -506,7 +576,7 @@ const Information = ({navigation}) => {
           </View>
         </View>
 
-        {/* Card with category selection + dynamic content */}
+        {}
         <View style={styles.card}>
           <Text style={styles.label}>Select Category</Text>
           <View style={styles.categoryGrid}>
@@ -535,6 +605,7 @@ const Information = ({navigation}) => {
                   style={[
                     styles.categoryCard,
                     isSelected && styles.categoryCardSelected,
+                    isPatient && styles.categoryCardPatient,
                     {borderColor: categoryColor},
                   ]}
                   onPress={() => setCategory(option.value)}>
@@ -596,16 +667,30 @@ const Information = ({navigation}) => {
           )}
 
           {!section ? (
-            <View style={styles.placeholder}>
-              <View style={styles.placeholderIcon}>
+            <View
+              style={[
+                styles.placeholder,
+                isPatient && styles.placeholderPatient,
+              ]}>
+              <View
+                style={[
+                  styles.placeholderIcon,
+                  isPatient && styles.placeholderIconPatient,
+                ]}>
                 <Icon
                   name="information-outline"
                   size={40}
-                  color={colors.primary}
+                  color={isPatient ? colors.white : colors.primary}
                 />
               </View>
-              <Text style={styles.placeholderText}>
-                Select a category to see detailed information and key messages.
+              <Text
+                style={[
+                  styles.placeholderText,
+                  isPatient && styles.placeholderTextPatient,
+                ]}>
+                {isPatient
+                  ? '👆 Select your category above to see important health information, IFA guidelines, and follow-up care instructions.'
+                  : 'Select a category to see detailed information and key messages.'}
               </Text>
               <View style={styles.placeholderDecorations}>
                 <View
@@ -635,7 +720,7 @@ const Information = ({navigation}) => {
                 <Text style={styles.subtitle}>{section.subtitle}</Text>
               ) : null}
 
-              {/* Detailed sections */}
+              {}
               <View style={styles.detailedSection}>
                 <Text style={styles.detailedTitle}>Detailed Information</Text>
                 {section.sections.map((sectionItem, sectionIndex) => {
@@ -724,14 +809,14 @@ const styles = StyleSheet.create({
   screen: {flex: 1, backgroundColor: colors.background},
 
   topRow: {
-    marginHorizontal: spacing.horizontal, // 16px left/right
+    marginHorizontal: spacing.horizontal,
     marginTop: spacing.md,
     marginBottom: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.surface,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     ...shadows.sm,
@@ -791,9 +876,9 @@ const styles = StyleSheet.create({
 
   card: {
     backgroundColor: colors.surface,
-    marginHorizontal: spacing.horizontal, // 16px left/right
+    marginHorizontal: spacing.horizontal,
     marginVertical: spacing.xs,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     ...shadows.md,
@@ -818,7 +903,7 @@ const styles = StyleSheet.create({
   categoryCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     width: '30%',
     alignItems: 'center',
@@ -833,8 +918,13 @@ const styles = StyleSheet.create({
     ...shadows.md,
     borderWidth: 3,
   },
+  categoryCardPatient: {
+    borderWidth: 2,
+    borderStyle: 'solid',
+    ...shadows.sm,
+  },
   categoryIconContainer: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.full,
     marginBottom: spacing.sm,
@@ -891,14 +981,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.primary + '30',
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.primary + '05',
   },
   placeholderIcon: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     backgroundColor: colors.primary + '20',
     borderRadius: borderRadius.full,
@@ -944,7 +1034,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.bold,
   },
 
-  // Carousel Styles
   carouselSection: {
     marginTop: spacing.lg,
     marginBottom: spacing.lg,
@@ -986,7 +1075,7 @@ const styles = StyleSheet.create({
   carouselCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     ...shadows.sm,
     borderWidth: 2,
@@ -1001,7 +1090,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary + '60',
     backgroundColor: colors.primary + '08',
     minHeight: 200,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     transform: [{scale: 1.05}],
   },
@@ -1086,7 +1175,7 @@ const styles = StyleSheet.create({
   sectionCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     marginBottom: spacing.lg,
     borderWidth: 2,
@@ -1101,7 +1190,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   sectionIconContainer: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     marginRight: spacing.sm,
@@ -1151,6 +1240,74 @@ const styles = StyleSheet.create({
     color: colors.white,
     ...typography.body,
     fontWeight: typography.weights.semibold,
+  },
+
+  patientBanner: {
+    marginHorizontal: spacing.horizontal,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: borderRadius.xl,
+    overflow: 'hidden',
+    ...shadows.lg,
+    borderWidth: 3,
+    borderColor: colors.primary + '80',
+  },
+  patientBannerGradient: {
+    padding: spacing.lg,
+  },
+  patientBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  patientBannerIconContainer: {
+    backgroundColor: colors.white + '30',
+    borderRadius: borderRadius.full,
+    padding: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.white + '50',
+  },
+  patientBannerTextContainer: {
+    flex: 1,
+  },
+  patientBannerTitle: {
+    ...typography.subtitle,
+    color: colors.white,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.xs,
+    fontSize: 18,
+  },
+  patientBannerSubtitle: {
+    ...typography.caption,
+    color: colors.white + 'EE',
+    lineHeight: 18,
+  },
+  patientBannerArrow: {
+    backgroundColor: colors.white + '20',
+    borderRadius: borderRadius.full,
+    padding: spacing.sm,
+    borderWidth: 2,
+    borderColor: colors.white + '40',
+  },
+  topRowPatient: {
+    borderWidth: 2,
+    borderColor: colors.primary + '40',
+    backgroundColor: colors.primary + '08',
+  },
+  placeholderPatient: {
+    borderWidth: 3,
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '15',
+    borderStyle: 'dashed',
+  },
+  placeholderIconPatient: {
+    backgroundColor: colors.primary,
+    borderColor: colors.white,
+  },
+  placeholderTextPatient: {
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+    fontSize: 15,
   },
 });
 

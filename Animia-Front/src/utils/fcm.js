@@ -3,73 +3,87 @@ let messaging;
 let notifee;
 
 try {
-  // Lazy require so the app still runs without Firebase config
   getApp = require('@react-native-firebase/app').getApp;
   messaging = require('@react-native-firebase/messaging').default;
   notifee = require('@notifee/react-native').default;
-} catch (_) {
-  // libs not available; will no-op
-}
+} catch (_) {}
 
 export async function initFCM() {
-  console.log('initFCM');
-  console.log('getApp', getApp);
-  console.log('messaging', messaging);
-  console.log('notifee', notifee);
   if (!getApp || !messaging || !notifee) {
-    console.error('FCM: Firebase modules not loaded');
     return null;
   }
 
   try {
-    const app = getApp(); // default Firebase app
+    const app = getApp();
+
     await ensureChannel();
-    console.log('ensureChannel');
-    // Permission (Android is auto-granted; iOS prompts user)
-    await messaging(app).requestPermission();
-    console.log('requestPermission');
-    // Retrieve device token (store it if you need to send direct notifications)
-    const token = await messaging(app).getToken();
-    console.log('token', token);
+
     try {
-      const {API} = require('./api');
-      const {Platform} = require('react-native');
-      // Use FCM token as device_id surrogate; optionally enrich with model
-      const DeviceInfo = require('react-native').Platform; // placeholder if react-native-device-info is not used
-      await API.registerToken(token, Platform.OS, token, null, true);
-      console.log('Token registered with backend');
-    } catch (err) {
-      console.error('Error registering token with backend:', err);
+      const authStatus = await messaging().requestPermission({
+        alert: true,
+        badge: true,
+        sound: true,
+      });
+    } catch (permErr) {
+      console.error('Error requesting permission:', permErr);
     }
 
-    // Foreground messages → show a heads-up notification
-    messaging(app).onMessage(async msg => {
+    const token = await messaging().getToken();
+    if (token) {
       try {
-        const title = msg?.notification?.title || 'Update';
-        const body = msg?.notification?.body || '';
+        const {API} = require('./api');
+        const {Platform} = require('react-native');
+
+        await API.registerToken(token, Platform.OS, token, null, true);
+      } catch (err) {}
+    } else {
+    }
+
+    messaging().onMessage(async msg => {
+      try {
+        const title = msg?.notification?.title || msg?.data?.title || 'Update';
+        const body = msg?.notification?.body || msg?.data?.body || '';
         await notifee.displayNotification({
           title,
           body,
-          android: {channelId: 'default'},
+          android: {
+            channelId: 'default',
+            importance: 4,
+            sound: 'default',
+            pressAction: {
+              id: 'default',
+            },
+          },
         });
-      } catch (err) {
-        console.error('Error displaying notification:', err);
-      }
+      } catch (err) {}
     });
+
+    messaging().onNotificationOpenedApp(remoteMessage => {});
+
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage) {
+        }
+      });
 
     return token;
   } catch (err) {
-    console.error('FCM init error:', err);
     return null;
   }
 }
 async function ensureChannel() {
-  if (!notifee) return;
+  if (!notifee) {
+    return;
+  }
   try {
     await notifee.createChannel({
       id: 'default',
-      name: 'General',
-      importance: 4, // AndroidImportance.HIGH
+      name: 'General Notifications',
+      importance: 4,
+      sound: 'default',
+      vibration: true,
+      vibrationPattern: [300, 500],
     });
-  } catch (_) {}
+  } catch (err) {}
 }

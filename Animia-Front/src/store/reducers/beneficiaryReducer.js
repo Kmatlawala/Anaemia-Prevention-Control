@@ -1,6 +1,5 @@
 import { createAction } from '@reduxjs/toolkit';
 
-// Action Types
 export const SET_BENEFICIARIES = 'beneficiary/setBeneficiaries';
 export const SET_CURRENT_BENEFICIARY = 'beneficiary/setCurrentBeneficiary';
 export const ADD_INTERVENTION = 'beneficiary/addIntervention';
@@ -10,7 +9,6 @@ export const SET_ERROR = 'beneficiary/setError';
 export const SET_FILTERS = 'beneficiary/setFilters';
 export const RESET_FILTERS = 'beneficiary/resetFilters';
 
-// Action Creators
 export const setBeneficiaries = createAction(SET_BENEFICIARIES);
 export const setCurrentBeneficiary = createAction(SET_CURRENT_BENEFICIARY);
 export const addIntervention = createAction(ADD_INTERVENTION);
@@ -20,7 +18,6 @@ export const setError = createAction(SET_ERROR);
 export const setFilters = createAction(SET_FILTERS);
 export const resetFilters = createAction(RESET_FILTERS);
 
-// Initial State
 const initialState = {
   beneficiaries: [],
   currentBeneficiary: null,
@@ -34,7 +31,6 @@ const initialState = {
   }
 };
 
-// Reducer
 export default function beneficiaryReducer(state = initialState, action) {
   switch (action.type) {
     case SET_BENEFICIARIES:
@@ -87,7 +83,6 @@ export default function beneficiaryReducer(state = initialState, action) {
   }
 }
 
-// Selectors
 export const selectBeneficiaries = (state) => state.beneficiary.beneficiaries;
 export const selectCurrentBeneficiary = (state) => state.beneficiary.currentBeneficiary;
 export const selectInterventions = (state) => state.beneficiary.interventions;

@@ -9,8 +9,7 @@ export const saveAuthState = async (authState) => {
     const jsonValue = JSON.stringify(authState);
     await AsyncStorage.setItem(STORAGE_KEYS.AUTH, jsonValue);
   } catch (error) {
-    console.error('Error saving auth state:', error);
-  }
+    }
 };
 
 export const loadAuthState = async () => {
@@ -18,7 +17,6 @@ export const loadAuthState = async () => {
     const jsonValue = await AsyncStorage.getItem(STORAGE_KEYS.AUTH);
     return jsonValue != null ? JSON.parse(jsonValue) : null;
   } catch (error) {
-    console.error('Error loading auth state:', error);
     return null;
   }
 };
@@ -27,6 +25,5 @@ export const clearAuthState = async () => {
   try {
     await AsyncStorage.removeItem(STORAGE_KEYS.AUTH);
   } catch (error) {
-    console.error('Error clearing auth state:', error);
-  }
+    }
 };

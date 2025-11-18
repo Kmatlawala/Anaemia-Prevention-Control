@@ -46,7 +46,6 @@ const SMSPermissionRequest = ({visible, onPermissionGranted, onClose}) => {
         );
       }
     } catch (error) {
-      console.error('Error requesting SMS permission:', error);
       Alert.alert(
         'Error',
         'Failed to request SMS permission. Please try again.',
@@ -134,7 +133,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.lg,
   },
   container: {

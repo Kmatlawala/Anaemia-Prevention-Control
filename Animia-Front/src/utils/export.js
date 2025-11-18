@@ -1,4 +1,4 @@
-// src/utils/export.js
+
 import * as XLSX from 'xlsx';
 import RNFS from 'react-native-fs';
 import Share from 'react-native-share';
@@ -19,7 +19,6 @@ async function ensureWritePermission() {
   } catch (_) { return false; }
 }
 
-// Simple text export method (most reliable)
 export const exportJsonToText = async (rows, filenamePrefix = 'Animia') => {
   const fileName = `${filenamePrefix}_${new Date().toISOString().replace(/[:.]/g,'-')}.txt`;
   
@@ -29,7 +28,7 @@ export const exportJsonToText = async (rows, filenamePrefix = 'Animia') => {
   }
   
   try {
-    // Create text content
+    
     let textContent = '';
     
     if (rows.length > 0) {
@@ -45,12 +44,10 @@ export const exportJsonToText = async (rows, filenamePrefix = 'Animia') => {
         textContent += values.join('\t') + '\n';
       });
     }
-    
-    // Save to multiple locations to ensure file is accessible
+
     const savedPaths = [];
     const errors = [];
-    
-    // Try multiple locations
+
     const locations = [
       {
         name: 'Downloads',
@@ -70,14 +67,13 @@ export const exportJsonToText = async (rows, filenamePrefix = 'Animia') => {
     for (const location of locations) {
       try {
         let targetPath = location.path;
-        
-        // Use fallback if primary path is not available
+
         if (!targetPath && location.fallback) {
           targetPath = location.fallback;
         }
         
         if (targetPath) {
-          // Create directory if it doesn't exist
+          
           const dirExists = await RNFS.exists(targetPath);
           if (!dirExists) {
             await RNFS.mkdir(targetPath);
@@ -85,27 +81,23 @@ export const exportJsonToText = async (rows, filenamePrefix = 'Animia') => {
           
           const filePath = `${targetPath}/${fileName}`;
           await RNFS.writeFile(filePath, textContent, 'utf8');
-          
-          // Verify file was actually written
+
           const fileExists = await RNFS.exists(filePath);
           if (fileExists) {
             const stats = await RNFS.stat(filePath);
             if (stats.size > 0) {
               savedPaths.push({ location: location.name, path: filePath });
-              console.log(`[Export] Successfully saved text to ${location.name}:`, filePath, `Size: ${stats.size} bytes`);
-            }
+              }
           }
         }
       } catch (error) {
         errors.push({ location: location.name, error: error.message });
-        console.warn(`[Export] Failed to save text to ${location.name}:`, error);
-      }
+        }
     }
-    
-    // Try to copy to accessible location
+
     if (savedPaths.length > 0) {
       try {
-        // Try to copy to a more accessible location
+        
         const accessiblePath = `${RNFS.ExternalStorageDirectoryPath}/Download/Animia_Reports`;
         await RNFS.mkdir(accessiblePath);
         
@@ -117,32 +109,27 @@ export const exportJsonToText = async (rows, filenamePrefix = 'Animia') => {
           const stats = await RNFS.stat(accessibleFilePath);
           if (stats.size > 0) {
             savedPaths.push({ location: 'Accessible Downloads', path: accessibleFilePath });
-            console.log(`[Export] Successfully copied text to accessible location:`, accessibleFilePath, `Size: ${stats.size} bytes`);
-          }
+            }
         }
       } catch (copyError) {
-        console.warn('[Export] Failed to copy text to accessible location:', copyError);
-      }
+        }
     }
-    
-    // Show results
+
     if (savedPaths.length > 0) {
       const successMessage = savedPaths.map(p => `${p.location}: ${p.path}`).join('\n\n');
       Alert.alert('Export Successful', `Text file saved to ${savedPaths.length} location(s):\n\n${successMessage}\n\nYou can find the files in your device's file manager.`);
-      return savedPaths[0].path; // Return first successful path
+      return savedPaths[0].path; 
     } else {
       const errorMessage = errors.map(e => `${e.location}: ${e.error}`).join('\n');
       Alert.alert('Export Failed', `Could not save text file to any location:\n\n${errorMessage}`);
       throw new Error('All save locations failed');
     }
   } catch (error) {
-    console.error('[Export] Text export error:', error);
     Alert.alert('Export Error', `Failed to export text: ${error.message}`);
     throw error;
   }
 };
 
-// Alternative CSV export method
 export const exportJsonToCSV = async (rows, filenamePrefix = 'Animia') => {
   const fileName = `${filenamePrefix}_${new Date().toISOString().replace(/[:.]/g,'-')}.csv`;
   
@@ -152,20 +139,17 @@ export const exportJsonToCSV = async (rows, filenamePrefix = 'Animia') => {
   }
   
   try {
-    // Create completely new data structure to avoid any references
+    
     const safeRows = [];
     
     if (rows.length > 0) {
       const headers = Object.keys(rows[0]);
-      console.log('[Export] CSV Headers:', headers);
       
-      // Create each row with only primitive values
       rows.forEach((row, index) => {
         const safeRow = {};
         headers.forEach(header => {
           const value = row[header];
-          
-          // Convert everything to string safely
+
           if (value === null || value === undefined) {
             safeRow[header] = '';
           } else if (typeof value === 'string') {
@@ -189,10 +173,7 @@ export const exportJsonToCSV = async (rows, filenamePrefix = 'Animia') => {
         safeRows.push(safeRow);
       });
     }
-    
-    console.log('[Export] CSV Safe rows created:', safeRows.length);
-    
-    // Create CSV content with safe data
+
     let csvContent = '';
     
     if (safeRows.length > 0) {
@@ -211,12 +192,10 @@ export const exportJsonToCSV = async (rows, filenamePrefix = 'Animia') => {
         csvContent += values.join(',') + '\n';
       });
     }
-    
-    // Save to multiple locations to ensure file is accessible
+
     const savedPaths = [];
     const errors = [];
-    
-    // Try multiple locations
+
     const locations = [
       {
         name: 'Downloads',
@@ -236,14 +215,13 @@ export const exportJsonToCSV = async (rows, filenamePrefix = 'Animia') => {
     for (const location of locations) {
       try {
         let targetPath = location.path;
-        
-        // Use fallback if primary path is not available
+
         if (!targetPath && location.fallback) {
           targetPath = location.fallback;
         }
         
         if (targetPath) {
-          // Create directory if it doesn't exist
+          
           const dirExists = await RNFS.exists(targetPath);
           if (!dirExists) {
             await RNFS.mkdir(targetPath);
@@ -251,27 +229,23 @@ export const exportJsonToCSV = async (rows, filenamePrefix = 'Animia') => {
           
           const filePath = `${targetPath}/${fileName}`;
           await RNFS.writeFile(filePath, csvContent, 'utf8');
-          
-          // Verify file was actually written
+
           const fileExists = await RNFS.exists(filePath);
           if (fileExists) {
             const stats = await RNFS.stat(filePath);
             if (stats.size > 0) {
               savedPaths.push({ location: location.name, path: filePath });
-              console.log(`[Export] Successfully saved to ${location.name}:`, filePath, `Size: ${stats.size} bytes`);
-            }
+              }
           }
         }
       } catch (error) {
         errors.push({ location: location.name, error: error.message });
-        console.warn(`[Export] Failed to save to ${location.name}:`, error);
-      }
+        }
     }
-    
-    // Try to copy to accessible location
+
     if (savedPaths.length > 0) {
       try {
-        // Try to copy to a more accessible location
+        
         const accessiblePath = `${RNFS.ExternalStorageDirectoryPath}/Download/Animia_Reports`;
         await RNFS.mkdir(accessiblePath);
         
@@ -283,33 +257,28 @@ export const exportJsonToCSV = async (rows, filenamePrefix = 'Animia') => {
           const stats = await RNFS.stat(accessibleFilePath);
           if (stats.size > 0) {
             savedPaths.push({ location: 'Accessible Downloads', path: accessibleFilePath });
-            console.log(`[Export] Successfully copied to accessible location:`, accessibleFilePath, `Size: ${stats.size} bytes`);
-          }
+            }
         }
       } catch (copyError) {
-        console.warn('[Export] Failed to copy to accessible location:', copyError);
-      }
+        }
     }
-    
-    // Show results
+
     if (savedPaths.length > 0) {
       const successMessage = savedPaths.map(p => `${p.location}: ${p.path}`).join('\n\n');
       Alert.alert('Export Successful', `CSV file saved to ${savedPaths.length} location(s):\n\n${successMessage}\n\nYou can find the files in your device's file manager.`);
-      return savedPaths[0].path; // Return first successful path
+      return savedPaths[0].path; 
     } else {
       const errorMessage = errors.map(e => `${e.location}: ${e.error}`).join('\n');
       Alert.alert('Export Failed', `Could not save CSV file to any location:\n\n${errorMessage}`);
       throw new Error('All save locations failed');
     }
   } catch (error) {
-    console.error('[Export] CSV export error:', error);
     Alert.alert('Export Error', `Failed to export CSV: ${error.message}`);
     throw error;
   }
 };
 
 export const exportJsonToXlsx = async (rows, filenamePrefix = 'Animia') => {
-  // Skip Excel export completely and use CSV instead
-  console.log('[Export] Skipping Excel export, using CSV instead');
+  
   return await exportJsonToCSV(rows, filenamePrefix);
 };

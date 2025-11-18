@@ -1,4 +1,3 @@
-// src/screens/Reports.js
 import React, {
   useEffect,
   useState,
@@ -30,7 +29,7 @@ import {
 } from '../theme/theme';
 import dayjs from 'dayjs';
 import LinearGradient from 'react-native-linear-gradient';
-// Import chart components with proper error handling
+
 import {
   PieChart as PieChartComponent,
   LineChart as LineChartComponent,
@@ -41,16 +40,11 @@ import {
   PieChart as GiftedPieChart,
 } from 'react-native-gifted-charts';
 
-// Create safe wrapper components
 const PieChart = ({data, ...props}) => {
-  console.log('[PieChart] Received data:', JSON.stringify(data, null, 2));
-
   let pieChartData;
 
-  // Check if data is already in PieChart format (array of objects)
   if (Array.isArray(data)) {
     if (data.length === 0) {
-      console.log('[PieChart] No data available (empty array)');
       return (
         <Text
           style={{
@@ -63,14 +57,8 @@ const PieChart = ({data, ...props}) => {
       );
     }
 
-    // Data is already in correct format, use it directly
-    console.log('[PieChart] Data is already in correct format, using directly');
     pieChartData = data;
   } else if (data && data.labels && data.labels.length > 0) {
-    // Data is in chart-kit format, convert it
-    console.log('[PieChart] Converting data from chart-kit format');
-
-    // Validate data structure for PieChart compatibility
     if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
       return (
         <Text
@@ -84,7 +72,6 @@ const PieChart = ({data, ...props}) => {
       );
     }
 
-    // Convert data format for PieChart compatibility
     pieChartData = data.labels.map((label, index) => ({
       name: label,
       population: data.datasets[0].data[index],
@@ -95,7 +82,6 @@ const PieChart = ({data, ...props}) => {
       legendFontSize: 12,
     }));
   } else {
-    console.log('[PieChart] No data or labels available');
     return (
       <Text
         style={{
@@ -108,13 +94,7 @@ const PieChart = ({data, ...props}) => {
     );
   }
 
-  console.log(
-    '[PieChart] Final data for rendering:',
-    JSON.stringify(pieChartData, null, 2),
-  );
-
   try {
-    // Convert data format for GiftedPieChart - ensure we have valid numbers
     const giftedPieData = pieChartData.map(item => {
       const value = Number(item.population || item.value || 0);
       return {
@@ -123,11 +103,6 @@ const PieChart = ({data, ...props}) => {
         text: item.name || item.text || 'Unknown',
       };
     });
-
-    console.log(
-      '[PieChart] Converted data:',
-      JSON.stringify(giftedPieData, null, 2),
-    );
 
     return (
       <View style={{alignItems: 'center'}}>
@@ -141,7 +116,6 @@ const PieChart = ({data, ...props}) => {
           isThreeD={false}
           showGradient={false}
           centerLabelComponent={() => {
-            // Find the largest category
             const largestCategory = giftedPieData.reduce(
               (max, item) => (item.value > max.value ? item : max),
               giftedPieData[0],
@@ -180,7 +154,7 @@ const PieChart = ({data, ...props}) => {
           {...props}
         />
 
-        {/* Custom Legend */}
+        {}
         <View
           style={{
             flexDirection: 'row',
@@ -230,7 +204,6 @@ const PieChart = ({data, ...props}) => {
       </View>
     );
   } catch (error) {
-    console.error('[PieChart] Error rendering chart:', error);
     return (
       <View
         style={{
@@ -280,7 +253,6 @@ const BarChart = ({data, ...props}) => {
     );
   }
 
-  // Validate data structure for BarChart compatibility
   if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
     return (
       <Text
@@ -295,49 +267,47 @@ const BarChart = ({data, ...props}) => {
   }
 
   try {
-    // Convert data to accurate line format
     const lineData = data.labels.map((label, index) => {
       let color;
       switch (label.toLowerCase()) {
         case 'normal':
-          color = '#10B981'; // Green
+          color = '#10B981';
           break;
         case 'mild':
-          color = '#F59E0B'; // Orange/Yellow
+          color = '#F59E0B';
           break;
         case 'moderate':
-          color = '#EF4444'; // Red
+          color = '#EF4444';
           break;
         case 'severe':
-          color = '#DC2626'; // Dark Red
+          color = '#DC2626';
           break;
         case 'unknown':
-          color = '#6B7280'; // Grey
+          color = '#6B7280';
           break;
         default:
-          color = '#2563EB'; // Blue
+          color = '#2563EB';
       }
 
-      // Add emojis based on health status
       let emoji;
       switch (label.toLowerCase()) {
         case 'normal':
-          emoji = '😊'; // Happy face
+          emoji = '😊';
           break;
         case 'mild':
-          emoji = '😐'; // Neutral face
+          emoji = '😐';
           break;
         case 'moderate':
-          emoji = '😟'; // Worried face
+          emoji = '😟';
           break;
         case 'severe':
-          emoji = '😰'; // Anxious face
+          emoji = '😰';
           break;
         case 'unknown':
-          emoji = '?'; // Simple question mark
+          emoji = '?';
           break;
         default:
-          emoji = '📊'; // Chart emoji
+          emoji = '📊';
       }
 
       return {
@@ -411,7 +381,6 @@ const BarChart = ({data, ...props}) => {
       />
     );
   } catch (error) {
-    console.error('[BarChart] Error rendering chart:', error);
     return (
       <View
         style={{
@@ -447,12 +416,8 @@ const BarChart = ({data, ...props}) => {
   }
 };
 
-// Area Chart wrapper for health status analysis
 const AreaChart = ({data, ...props}) => {
-  console.log('[AreaChart] Received data:', JSON.stringify(data, null, 2));
-
   if (!data || !data.labels || data.labels.length === 0) {
-    console.log('[AreaChart] No data or labels available');
     return (
       <Text
         style={{
@@ -465,9 +430,7 @@ const AreaChart = ({data, ...props}) => {
     );
   }
 
-  // Validate data structure for AreaChart compatibility
   if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
-    console.log('[AreaChart] Invalid data structure');
     return (
       <Text
         style={{
@@ -483,7 +446,6 @@ const AreaChart = ({data, ...props}) => {
   try {
     return <LineChartComponent data={data} {...props} />;
   } catch (error) {
-    console.error('[AreaChart] Error rendering chart:', error);
     return (
       <View
         style={{
@@ -559,17 +521,14 @@ const Reports = ({navigation, route}) => {
   const loading = useSelector(selectReportLoading);
   const error = useSelector(selectReportError);
 
-  // Get beneficiaries from Redux store (with offline caching)
   const beneficiaries = useSelector(selectBeneficiaries);
   const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
   const beneficiaryError = useSelector(selectBeneficiaryError);
 
-  // Animation values
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
-  // Track if we've already processed data to prevent infinite loops
   const hasProcessedData = useRef(false);
 
   const [agg, setAgg] = useState({
@@ -584,7 +543,6 @@ const Reports = ({navigation, route}) => {
     Pregnant: 0,
     Adolescent: 0,
     Under5: 0,
-    WoRA: 0,
   });
   const [rows, setRows] = useState([]);
   const [showFromPicker, setShowFromPicker] = useState(false);
@@ -599,8 +557,9 @@ const Reports = ({navigation, route}) => {
     severe: 0,
     unknown: 0,
   });
+  const [dotAdherenceData, setDotAdherenceData] = useState(null);
+  const [loadingDOT, setLoadingDOT] = useState(false);
 
-  // Removed unused progress bar animation values for better performance
   const DateTimePicker = useMemo(() => {
     try {
       const mod = require('@react-native-community/datetimepicker');
@@ -620,20 +579,27 @@ const Reports = ({navigation, route}) => {
     }, [navigation]),
   );
 
-  // Load beneficiaries and run animations on component mount
+  const loadDOTAdherenceData = async () => {
+    setLoadingDOT(true);
+    try {
+      const response = await API.getAdherenceReport();
+      if (response.success) {
+        setDotAdherenceData(response);
+      }
+    } catch (error) {
+    } finally {
+      setLoadingDOT(false);
+    }
+  };
+
   useEffect(() => {
-    // Only fetch beneficiaries if we don't have any data
     if (!beneficiaries || beneficiaries.length === 0) {
-      console.log('[Reports] Initial load - fetching beneficiaries...');
       dispatch(fetchBeneficiaries());
     } else {
-      console.log(
-        '[Reports] Initial load - using existing beneficiaries:',
-        beneficiaries.length,
-      );
     }
 
-    // Start with visible content, then add subtle animation
+    loadDOTAdherenceData();
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -651,42 +617,33 @@ const Reports = ({navigation, route}) => {
         useNativeDriver: true,
       }),
     ]).start();
-  }, [dispatch]); // Only run once on mount
+  }, [dispatch]);
 
-  // Process data when beneficiaries are loaded
   useEffect(() => {
     if (
       beneficiaries &&
       beneficiaries.length > 0 &&
       !hasProcessedData.current
     ) {
-      console.log('[Reports] Beneficiaries loaded, processing data...');
       hasProcessedData.current = true;
-      load(true); // Skip fetching since we already have data
+      load(true);
     }
-  }, [beneficiaries]); // Run when beneficiaries change
+  }, [beneficiaries]);
 
-  // Removed unused progress bar animations for better performance
-
-  // Update dashboard and list immediately when filters change
   useEffect(() => {
-    hasProcessedData.current = false; // Reset flag when filters change
+    hasProcessedData.current = false;
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
   useEffect(() => {
     (async () => {
       const r = await getRole();
       if (String(r || '').toLowerCase() === 'patient') {
-        // patients should not view reports, send back
         navigation.navigate('Dashboard');
       }
     })();
   }, [navigation]);
 
-  // Simplified counter animation for better performance
   const animateCounters = targetValues => {
-    // Use direct state update instead of complex animation
     setAnimatedValues(targetValues);
   };
 
@@ -711,38 +668,26 @@ const Reports = ({navigation, route}) => {
 
   const load = async (skipFetch = false) => {
     dispatch(setReportLoading(true));
-    dispatch(setReportError(null)); // Clear any previous errors
+    dispatch(setReportError(null));
     try {
       await debugCacheStatus();
 
-      // Use beneficiaries from Redux store (don't fetch again if we already have data)
       let data = beneficiaries;
 
-      // Only fetch if we don't have data and we're not skipping the fetch
       if ((!data || data.length === 0) && !skipFetch) {
-        console.log('[Reports] No beneficiaries in Redux, fetching...');
         const fetchResult = await dispatch(fetchBeneficiaries());
         data = fetchResult.payload || beneficiaries;
       } else {
-        console.log(
-          '[Reports] Using existing beneficiaries from Redux:',
-          data.length,
-        );
       }
 
       if (!Array.isArray(data) || data.length === 0) {
-        console.warn('[Reports] No beneficiaries data available');
-        // Don't set error immediately, check if we're still loading
         if (!beneficiaryLoading) {
-          // Try to get cached data as fallback
           try {
             const {getCachedBeneficiaries} = await import(
               '../utils/asyncCache'
             );
             const cachedData = await getCachedBeneficiaries();
             if (cachedData && cachedData.length > 0) {
-              console.log('[Reports] Using cached data as fallback');
-              // Process cached data instead of showing error
               const enriched = cachedData.map(r => {
                 const anemiaCategory =
                   r.latest_anemia_category || r.anemia_category || null;
@@ -762,17 +707,13 @@ const Reports = ({navigation, route}) => {
               dispatch(setCurrentReport(enriched));
               return;
             }
-          } catch (cacheError) {
-            console.warn('[Reports] Failed to get cached data:', cacheError);
-          }
+          } catch (cacheError) {}
           dispatch(setReportError('No data available'));
         }
         return;
       }
 
-      // Optimize data processing with batch operations
       const enriched = data.map(r => {
-        // Simplified field checking
         const anemiaCategory =
           r.latest_anemia_category || r.anemia_category || null;
         const hbValue = r.latest_hemoglobin || r.hb;
@@ -784,7 +725,6 @@ const Reports = ({navigation, route}) => {
         };
       });
 
-      // Apply filters from Redux state
       const fromDay = filters.dateRange.startDate
         ? dayjs(filters.dateRange.startDate).startOf('day')
         : null;
@@ -793,27 +733,31 @@ const Reports = ({navigation, route}) => {
         : null;
 
       const filtered = enriched.filter(r => {
-        // Date filtering
-        const dateSrc = r.follow_up_due || r.registration_date || null;
+        const dateSrc =
+          r.last_screening_date ||
+          r.follow_up_due ||
+          r.registration_date ||
+          null;
         const d = dateSrc ? dayjs(dateSrc) : null;
-        if (fromDay && d && d.isBefore(fromDay)) return false;
-        if (toDay && d && d.isAfter(toDay)) return false;
 
-        // Category filtering
+        if (fromDay || toDay) {
+          if (!d) return false;
+          if (fromDay && d.isBefore(fromDay)) return false;
+          if (toDay && d.isAfter(toDay)) return false;
+        }
+
         if (
           filters.beneficiaryType !== 'all' &&
           r.category !== filters.beneficiaryType
         )
           return false;
 
-        // Severity filtering
         if (
           filters.interventionStatus !== 'all' &&
           r._severity !== filters.interventionStatus
         )
           return false;
 
-        // Location filtering
         if (
           filters.location &&
           filters.location !== 'all' &&
@@ -824,9 +768,31 @@ const Reports = ({navigation, route}) => {
         return true;
       });
 
+      if (fromDay || toDay) {
+        setFilters({
+          fromDay: fromDay?.format('YYYY-MM-DD'),
+          toDay: toDay?.format('YYYY-MM-DD'),
+          totalBeneficiaries: enriched.length,
+          filteredCount: filtered.length,
+        });
+
+        if (filtered.length > 0 && filtered.length <= 10) {
+          setCurrentReport(
+            filtered.map(b => ({
+              id: b.id,
+              name: b.name,
+              category: b.category,
+              severity: b._severity,
+              screening_date: b.last_screening_date,
+              follow_up_due: b.follow_up_due,
+              registration_date: b.registration_date,
+            })),
+          );
+        }
+      }
+
       setRows(filtered);
 
-      // Optimize statistics calculation
       let counts = {
         total: filtered.length,
         normal: 0,
@@ -835,16 +801,13 @@ const Reports = ({navigation, route}) => {
         severe: 0,
         unknown: 0,
       };
-      let catCounts = {Pregnant: 0, Adolescent: 0, Under5: 0, WoRA: 0};
+      let catCounts = {Pregnant: 0, Adolescent: 0, Under5: 0};
 
-      // Single pass through data for better performance
       filtered.forEach(r => {
         const s = r._severity || 'unknown';
 
-        // Count severity
         counts[s] = (counts[s] || 0) + 1;
 
-        // Count categories
         if (r.category && catCounts.hasOwnProperty(r.category)) {
           catCounts[r.category]++;
         }
@@ -854,10 +817,8 @@ const Reports = ({navigation, route}) => {
       setCatAgg(catCounts);
       dispatch(setCurrentReport(filtered));
 
-      // Animate the counter values
       animateCounters(counts);
 
-      // Prepare chart data
       const categoryChartData = {
         labels: Object.keys(catCounts).filter(key => catCounts[key] > 0),
         datasets: [
@@ -904,14 +865,9 @@ const Reports = ({navigation, route}) => {
         ],
       };
 
-      console.log(
-        '[Reports] Setting chartData:',
-        JSON.stringify(categoryChartData, null, 2),
-      );
       setChartData(categoryChartData);
       setSeverityChartData(severityChartData);
     } catch (e) {
-      console.warn('Error loading reports:', e);
       dispatch(setReportError(e.message));
     } finally {
       dispatch(setReportLoading(false));
@@ -931,7 +887,6 @@ const Reports = ({navigation, route}) => {
         return String(value);
       };
 
-      // Simplified export with only essential fields
       rows.forEach(row => {
         const exportRow = {
           Name: safeString(row.name),
@@ -944,7 +899,6 @@ const Reports = ({navigation, route}) => {
         exportData.push(exportRow);
       });
 
-      // Simplified summary data
       const summaryRows = [
         {
           Name: '=== DASHBOARD SUMMARY ===',
@@ -956,7 +910,7 @@ const Reports = ({navigation, route}) => {
         },
         {
           Name: 'Category Statistics',
-          Category: `Pregnant: ${catAgg.Pregnant}, Adolescent: ${catAgg.Adolescent}, Under5: ${catAgg.Under5}, WoRA: ${catAgg.WoRA}`,
+          Category: `Pregnant: ${catAgg.Pregnant}, Adolescent: ${catAgg.Adolescent}, Under5: ${catAgg.Under5}`,
           'Hb Level': '',
           Severity: '',
           'Registration Date': '',
@@ -980,18 +934,13 @@ const Reports = ({navigation, route}) => {
         },
       ];
 
-      // Export both data and summary
       const finalExportData = [...exportData, ...summaryRows];
       try {
-        // Try CSV export first (most reliable)
         await exportJsonToCSV(finalExportData, 'Animia_Report');
       } catch (csvError) {
-        console.warn('[Reports] CSV export failed, trying text:', csvError);
         try {
-          // Fallback to text export
           await exportJsonToText(finalExportData, 'Animia_Report');
         } catch (textError) {
-          console.error('[Reports] All export methods failed:', textError);
           Alert.alert(
             'Export Failed',
             'All export methods failed. Please try again.',
@@ -999,18 +948,13 @@ const Reports = ({navigation, route}) => {
         }
       }
     } catch (error) {
-      console.error('[Reports] Export error:', error);
       Alert.alert('Export Failed', `Error exporting report: ${error.message}`);
     }
   };
 
-  // Removed unused progress bar component for better performance
-
-  // Proper Pie Chart using react-native-chart-kit
   const renderPieChart = useCallback((data, title) => {
     if (!data || !data.labels || data.labels.length === 0) return null;
 
-    // Ensure data.datasets exists and has data
     if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
       return null;
     }
@@ -1018,7 +962,6 @@ const Reports = ({navigation, route}) => {
     const total = data.datasets[0].data.reduce((sum, value) => sum + value, 0);
     if (total === 0) return null;
 
-    // Prepare data for react-native-chart-kit
     const chartData = data.labels.map((label, index) => ({
       name: label,
       population: data.datasets[0].data[index],
@@ -1067,31 +1010,20 @@ const Reports = ({navigation, route}) => {
     );
   }, []);
 
-  // Proper Bar Chart using react-native-chart-kit
   const renderBarChart = useCallback((data, title) => {
-    console.log(
-      '[renderBarChart] Received data:',
-      JSON.stringify(data, null, 2),
-    );
-
     if (!data || !data.labels || data.labels.length === 0) {
-      console.log('[renderBarChart] No data or labels available');
       return null;
     }
 
-    // Ensure data.datasets exists and has data
     if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
-      console.log('[renderBarChart] Invalid data structure');
       return null;
     }
 
     const maxValue = Math.max(...data.datasets[0].data);
     if (maxValue === 0) {
-      console.log('[renderBarChart] Max value is 0');
       return null;
     }
 
-    // Simple data structure for GiftedBarChart
     const chartData = {
       labels: data.labels,
       datasets: [
@@ -1100,14 +1032,6 @@ const Reports = ({navigation, route}) => {
         },
       ],
     };
-
-    console.log(
-      '[renderBarChart] Final chartData:',
-      JSON.stringify(chartData, null, 2),
-    );
-    console.log('[renderBarChart] Colors array:', chartData.datasets[0].colors);
-
-    // GiftedBarChart doesn't need chartConfig
 
     return (
       <View style={styles.chartCard}>
@@ -1125,7 +1049,7 @@ const Reports = ({navigation, route}) => {
             }}
           />
 
-          {/* Custom Legend for BarChart */}
+          {}
           <View style={styles.legendContainer}>
             {data.labels.map((label, index) => {
               const color = data.datasets[0].colors
@@ -1149,31 +1073,20 @@ const Reports = ({navigation, route}) => {
     );
   }, []);
 
-  // Area Chart for Health Status Analysis with different colors
   const renderAreaChart = useCallback((data, title) => {
-    console.log(
-      '[renderAreaChart] Received data:',
-      JSON.stringify(data, null, 2),
-    );
-
     if (!data || !data.labels || data.labels.length === 0) {
-      console.log('[renderAreaChart] No data or labels available');
       return null;
     }
 
-    // Ensure data.datasets exists and has data
     if (!data.datasets || !data.datasets[0] || !data.datasets[0].data) {
-      console.log('[renderAreaChart] Invalid data structure');
       return null;
     }
 
     const maxValue = Math.max(...data.datasets[0].data);
     if (maxValue === 0) {
-      console.log('[renderAreaChart] Max value is 0');
       return null;
     }
 
-    // Create a single dataset with all values for better line chart visualization
     const chartData = {
       labels: data.labels,
       datasets: [
@@ -1184,11 +1097,6 @@ const Reports = ({navigation, route}) => {
         },
       ],
     };
-
-    console.log(
-      '[renderAreaChart] Final chartData:',
-      JSON.stringify(chartData, null, 2),
-    );
 
     const chartConfig = {
       backgroundColor: colors.white,
@@ -1234,7 +1142,7 @@ const Reports = ({navigation, route}) => {
             withShadow={true}
           />
 
-          {/* Custom Legend */}
+          {}
           <View style={styles.legendContainer}>
             {data.labels.map((label, index) => {
               let color;
@@ -1279,7 +1187,7 @@ const Reports = ({navigation, route}) => {
   const renderModernDashboard = useCallback(
     () => (
       <View style={styles.modernDashboard}>
-        {/* Proper Date Display */}
+        {}
         <View style={styles.dateSection}>
           <View style={styles.dateDisplayContainer}>
             <View style={styles.dateInfo}>
@@ -1314,7 +1222,7 @@ const Reports = ({navigation, route}) => {
           </View>
         </View>
 
-        {/* Enhanced Key Metrics Row with Gradients */}
+        {}
         <View style={styles.keyMetricsRow}>
           <LinearGradient
             colors={[colors.primary, colors.primary + 'CC']}
@@ -1367,7 +1275,7 @@ const Reports = ({navigation, route}) => {
           </LinearGradient>
         </View>
 
-        {/* Enhanced Category Distribution with Cards */}
+        {}
         <View style={styles.progressSection}>
           <View style={styles.sectionHeader}>
             <Icon name="account-group" size={20} color={colors.primary} />
@@ -1437,28 +1345,10 @@ const Reports = ({navigation, route}) => {
                 %
               </Text>
             </View>
-
-            <View style={[styles.categoryCard, {borderLeftColor: colors.wora}]}>
-              <View
-                style={[
-                  styles.categoryIcon,
-                  {backgroundColor: colors.wora + '20'},
-                ]}>
-                <Icon name="gender-female" size={20} color={colors.wora} />
-              </View>
-              <Text style={styles.categoryNumber}>{catAgg.WoRA}</Text>
-              <Text style={styles.categoryLabel}>WoRA</Text>
-              <Text style={styles.categoryPercentage}>
-                {agg.total > 0
-                  ? ((catAgg.WoRA / agg.total) * 100).toFixed(1)
-                  : '0.0'}
-                %
-              </Text>
-            </View>
           </View>
         </View>
 
-        {/* Removed duplicate Health Status Overview section - keeping only the enhanced version below */}
+        {}
       </View>
     ),
     [animatedValues, catAgg, filters.dateRange, dispatch],
@@ -1470,7 +1360,9 @@ const Reports = ({navigation, route}) => {
       <Header
         title="Reports & Analytics"
         variant="back"
-        onBackPress={() => navigation.goBack()}
+        onBackPress={() => {
+          navigation.navigate('Dashboard');
+        }}
         onBellPress={() => navigation.navigate('ReportFilters', {filters})}
         rightIconName="chart-line"
       />
@@ -1527,7 +1419,7 @@ const Reports = ({navigation, route}) => {
               <Text style={{color: '#fff', fontWeight: '600'}}>Retry</Text>
             </TouchableOpacity>
 
-            {/* Debug button for troubleshooting */}
+            {}
             <TouchableOpacity
               style={[
                 styles.retryBtn,
@@ -1564,7 +1456,7 @@ const Reports = ({navigation, route}) => {
           <>
             {renderModernDashboard()}
 
-            {/* Comprehensive Charts Section - Replacing 3 redundant sections with 2 effective charts */}
+            {}
             <View style={styles.chartsSection}>
               {chartData ? (
                 renderPieChart(chartData, 'Population Distribution by Category')
@@ -1601,6 +1493,222 @@ const Reports = ({navigation, route}) => {
               )}
             </View>
 
+            {}
+            {dotAdherenceData &&
+              dotAdherenceData.report &&
+              dotAdherenceData.report.length > 0 && (
+                <View style={styles.dotSection}>
+                  <View style={styles.sectionHeader}>
+                    <Icon
+                      name="calendar-check"
+                      size={20}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.sectionTitle}>
+                      DOT Adherence Report
+                    </Text>
+                  </View>
+
+                  {}
+                  <View style={styles.dotSummary}>
+                    <View style={styles.dotStatCard}>
+                      <View style={styles.dotStatIconContainer}>
+                        <Icon name="percent" size={20} color={colors.primary} />
+                      </View>
+                      <Text style={styles.dotStatNumber}>
+                        {dotAdherenceData.summary?.averageAdherence || 0}%
+                      </Text>
+                      <Text style={styles.dotStatLabel}>Average Adherence</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.dotStatCard,
+                        {borderLeftColor: colors.error},
+                      ]}>
+                      <View
+                        style={[
+                          styles.dotStatIconContainer,
+                          {backgroundColor: colors.error + '20'},
+                        ]}>
+                        <Icon name="alert" size={20} color={colors.error} />
+                      </View>
+                      <Text
+                        style={[styles.dotStatNumber, {color: colors.error}]}>
+                        {dotAdherenceData.summary?.needsAlert || 0}
+                      </Text>
+                      <Text style={styles.dotStatLabel}>Need Alert</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.dotStatCard,
+                        {borderLeftColor: colors.info},
+                      ]}>
+                      <View
+                        style={[
+                          styles.dotStatIconContainer,
+                          {backgroundColor: colors.info + '20'},
+                        ]}>
+                        <Icon
+                          name="account-group"
+                          size={20}
+                          color={colors.info}
+                        />
+                      </View>
+                      <Text
+                        style={[styles.dotStatNumber, {color: colors.info}]}>
+                        {dotAdherenceData.summary?.totalBeneficiaries || 0}
+                      </Text>
+                      <Text style={styles.dotStatLabel}>Total Patients</Text>
+                    </View>
+                  </View>
+
+                  {}
+                  <View style={styles.adherenceListContainer}>
+                    <View style={styles.adherenceListHeader}>
+                      <Icon
+                        name="clipboard-list"
+                        size={18}
+                        color={colors.text}
+                      />
+                      <Text style={styles.adherenceListTitle}>
+                        Patient Adherence Details (
+                        {dotAdherenceData.report?.length || 0} Patients)
+                      </Text>
+                    </View>
+
+                    <ScrollView
+                      style={styles.adherenceScrollView}
+                      nestedScrollEnabled={true}
+                      showsVerticalScrollIndicator={true}>
+                      {dotAdherenceData.report.map((patient, index) => (
+                        <View
+                          key={patient.beneficiaryId || index}
+                          style={[
+                            styles.adherenceItem,
+                            patient.needsAlert && styles.adherenceItemAlert,
+                          ]}>
+                          <View style={styles.adherenceItemHeader}>
+                            <View style={styles.adherenceItemLeft}>
+                              <View style={styles.adherenceAvatar}>
+                                <Icon
+                                  name="account"
+                                  size={20}
+                                  color={
+                                    patient.needsAlert
+                                      ? colors.error
+                                      : colors.primary
+                                  }
+                                />
+                              </View>
+                              <View style={styles.adherenceInfo}>
+                                <Text
+                                  style={styles.adherenceName}
+                                  numberOfLines={1}>
+                                  {patient.name || 'Unknown'}
+                                </Text>
+                                <View style={styles.adherenceMeta}>
+                                  <Text style={styles.adherenceId}>
+                                    ID:{' '}
+                                    {patient.shortId || patient.beneficiaryId}
+                                  </Text>
+                                  {patient.ifaQuantity && (
+                                    <Text style={styles.adherenceMetaText}>
+                                      • IFA: {patient.ifaQuantity}
+                                    </Text>
+                                  )}
+                                </View>
+                              </View>
+                            </View>
+                            {patient.needsAlert && (
+                              <View style={styles.alertBadge}>
+                                <Icon
+                                  name="alert-circle"
+                                  size={12}
+                                  color={colors.white}
+                                />
+                                <Text style={styles.alertText}>ALERT</Text>
+                              </View>
+                            )}
+                          </View>
+
+                          <View style={styles.adherenceStatsRow}>
+                            <View style={styles.adherenceStatItem}>
+                              <Icon
+                                name="calendar-check"
+                                size={14}
+                                color={colors.success}
+                              />
+                              <Text style={styles.adherenceStatLabel}>
+                                Taken
+                              </Text>
+                              <Text style={styles.adherenceStatValue}>
+                                {patient.takenDays || 0} days
+                              </Text>
+                            </View>
+                            <View style={styles.adherenceStatItem}>
+                              <Icon
+                                name="calendar-remove"
+                                size={14}
+                                color={colors.warning}
+                              />
+                              <Text style={styles.adherenceStatLabel}>
+                                Missed
+                              </Text>
+                              <Text style={styles.adherenceStatValue}>
+                                {patient.missedDays || 0} days
+                              </Text>
+                            </View>
+                            <View style={styles.adherenceStatItem}>
+                              <Text
+                                style={[
+                                  styles.adherencePercentage,
+                                  {
+                                    color:
+                                      patient.adherencePercentage >= 70
+                                        ? colors.success
+                                        : patient.adherencePercentage >= 50
+                                        ? colors.warning
+                                        : colors.error,
+                                  },
+                                ]}>
+                                {patient.adherencePercentage || 0}%
+                              </Text>
+                              <Text style={styles.adherenceStatLabel}>
+                                Adherence
+                              </Text>
+                            </View>
+                          </View>
+
+                          {patient.consecutiveMissedDays > 0 && (
+                            <View style={styles.missedDaysWarning}>
+                              <Icon
+                                name="alert-circle"
+                                size={14}
+                                color={colors.warning}
+                              />
+                              <Text style={styles.missedDaysText}>
+                                {patient.consecutiveMissedDays} consecutive days
+                                missed
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              )}
+
+            {loadingDOT && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text
+                  style={{marginTop: spacing.xs, color: colors.textSecondary}}>
+                  Loading adherence data...
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity style={styles.exportBtn} onPress={exportReport}>
               <LinearGradient
                 colors={[colors.primary, colors.primary + 'CC']}
@@ -1620,7 +1728,7 @@ const styles = StyleSheet.create({
   screen: {flex: 1, backgroundColor: colors.background},
   scrollContainer: {flex: 1},
   container: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     paddingBottom: spacing.lg,
   },
@@ -1657,13 +1765,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     paddingVertical: spacing.xl,
   },
   retryBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
     alignItems: 'center',
@@ -1673,7 +1781,7 @@ const styles = StyleSheet.create({
   },
   exportBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.sm,
     alignItems: 'center',
@@ -1697,7 +1805,7 @@ const styles = StyleSheet.create({
   dataTable: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     ...shadows.sm,
   },
@@ -1725,12 +1833,12 @@ const styles = StyleSheet.create({
   progressSection: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     marginBottom: spacing.sm,
     ...shadows.sm,
   },
-  // Removed unused progress bar styles for better performance
+
   chartsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1793,7 +1901,7 @@ const styles = StyleSheet.create({
   summaryCard: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     height: 120,
     justifyContent: 'center',
@@ -1853,9 +1961,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // Modern Dashboard Styles
   modernDashboard: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
 
   keyMetricsRow: {
@@ -1869,7 +1976,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     alignItems: 'center',
     shadowColor: colors.black,
@@ -1905,7 +2012,7 @@ const styles = StyleSheet.create({
   dashboardCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     marginBottom: spacing.md,
     shadowColor: colors.black,
@@ -1992,7 +2099,7 @@ const styles = StyleSheet.create({
   statusCard: {
     alignItems: 'center',
     paddingVertical: spacing.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     borderRadius: borderRadius.md,
     minWidth: 70,
   },
@@ -2019,15 +2126,15 @@ const styles = StyleSheet.create({
 
   chartsSection: {
     flexDirection: 'column',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
     paddingHorizontal: spacing.sm,
   },
 
   chartCard: {
     backgroundColor: colors.white,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     shadowColor: colors.black,
     shadowOffset: {width: 0, height: 4},
@@ -2036,7 +2143,7 @@ const styles = StyleSheet.create({
     elevation: 6,
     minHeight: 250,
     width: '100%',
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
   },
 
   dateSection: {
@@ -2111,16 +2218,16 @@ const styles = StyleSheet.create({
   progressSection: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
-    marginBottom: spacing.md,
+    marginBottom: spacing.xs,
     ...shadows.md,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    paddingBottom: spacing.sm,
+    marginBottom: spacing.md,
+    paddingBottom: spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
@@ -2135,7 +2242,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.md,
   },
@@ -2172,6 +2279,218 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 12,
     fontWeight: typography.weights.medium,
+  },
+
+  dotSection: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.horizontal,
+    paddingVertical: spacing.lg,
+    marginTop: spacing.xs,
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  dotSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  dotStatCard: {
+    flex: 1,
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    shadowColor: colors.black,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  dotStatIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.sm,
+  },
+  dotStatNumber: {
+    ...typography.subtitle,
+    fontSize: 18,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+    marginBottom: spacing.xs,
+  },
+  dotStatLabel: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  adherenceListContainer: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    maxHeight: 400,
+    ...shadows.sm,
+  },
+  adherenceListHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    paddingBottom: spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  adherenceListTitle: {
+    ...typography.subtitle,
+    color: colors.text,
+    fontWeight: typography.weights.semibold,
+    marginLeft: spacing.sm,
+  },
+  adherenceScrollView: {
+    maxHeight: 350,
+  },
+  adherenceItem: {
+    backgroundColor: colors.white,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary,
+    shadowColor: colors.black,
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  adherenceItemAlert: {
+    borderLeftColor: colors.error,
+    backgroundColor: colors.errorLight,
+  },
+  adherenceItemHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  adherenceItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  adherenceAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.primary + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.sm,
+  },
+  adherenceInfo: {
+    flex: 1,
+  },
+  adherenceName: {
+    ...typography.body,
+    fontWeight: typography.weights.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  adherenceMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  adherenceId: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginRight: spacing.xs,
+  },
+  adherenceMetaText: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  adherenceStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    marginTop: spacing.sm,
+  },
+  adherenceStatItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  adherenceStatLabel: {
+    ...typography.caption,
+    fontSize: 10,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  adherenceStatValue: {
+    ...typography.caption,
+    fontSize: 13,
+    fontWeight: typography.weights.semibold,
+    color: colors.text,
+    marginTop: spacing.xs,
+  },
+  adherenceStats: {
+    alignItems: 'flex-end',
+    marginRight: spacing.sm,
+  },
+  adherencePercentage: {
+    ...typography.body,
+    fontSize: 18,
+    fontWeight: typography.weights.bold,
+  },
+  adherenceDays: {
+    ...typography.caption,
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  missedDaysWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.warningLight,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.sm,
+  },
+  missedDaysText: {
+    ...typography.caption,
+    fontSize: 11,
+    color: colors.warning,
+    marginLeft: spacing.xs,
+    fontWeight: typography.weights.semibold,
+  },
+  alertBadge: {
+    backgroundColor: colors.error,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  alertText: {
+    ...typography.caption,
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: typography.weights.bold,
   },
 });
 

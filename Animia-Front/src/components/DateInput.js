@@ -1,4 +1,4 @@
-// src/components/DateInput.js
+
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Input from './Input';
@@ -10,7 +10,6 @@ const fmt = (d) => dayjs(d).format('YYYY-MM-DD');
 const DateInput = ({ label, value, onChange, style }) => {
   const [show, setShow] = useState(setShow);
 
-  // Robust require for both platforms
   const DateTimePicker = useMemo(() => {
     try {
       const mod = require('@react-native-community/datetimepicker');

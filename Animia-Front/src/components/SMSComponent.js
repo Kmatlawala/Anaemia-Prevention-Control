@@ -15,10 +15,6 @@ import {
   isValidPhoneNumber,
 } from '../utils/sms';
 
-/**
- * SMS Component for sending SMS messages
- * Supports both single and bulk SMS sending
- */
 const SMSComponent = ({
   beneficiaries = [],
   onSMSComplete = () => {},
@@ -27,11 +23,8 @@ const SMSComponent = ({
   const [phoneNumber, setPhoneNumber] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [sendMethod, setSendMethod] = useState('direct'); // 'direct' or 'app'
+  const [sendMethod, setSendMethod] = useState('direct'); 
 
-  /**
-   * Send single SMS
-   */
   const handleSendSMS = async () => {
     if (!phoneNumber.trim() || !message.trim()) {
       Alert.alert('Error', 'Please enter phone number and message');
@@ -53,7 +46,6 @@ const SMSComponent = ({
       );
 
       if (success) {
-        console.log('[SMSComponent] SMS sent successfully!');
         setPhoneNumber('');
         setMessage('');
         onSMSComplete({
@@ -62,7 +54,6 @@ const SMSComponent = ({
           success: true,
         });
       } else {
-        console.error('[SMSComponent] Failed to send SMS');
         onSMSComplete({
           type: 'single',
           phoneNumber: formattedNumber,
@@ -70,17 +61,12 @@ const SMSComponent = ({
         });
       }
     } catch (error) {
-      console.error('SMS send error:', error);
-      console.error('[SMSComponent] Failed to send SMS:', error.message);
       onSMSComplete({type: 'single', phoneNumber: phoneNumber, success: false});
     } finally {
       setIsLoading(false);
     }
   };
 
-  /**
-   * Send bulk SMS to all beneficiaries
-   */
   const handleSendBulkSMS = async () => {
     if (!message.trim()) {
       Alert.alert('Error', 'Please enter a message');
@@ -116,8 +102,6 @@ const SMSComponent = ({
         });
       }
     } catch (error) {
-      console.error('Bulk SMS send error:', error);
-      console.error('[SMSComponent] Failed to send bulk SMS:', error.message);
       onSMSComplete({
         type: 'bulk',
         beneficiaries: beneficiaries.length,
@@ -132,7 +116,7 @@ const SMSComponent = ({
     <View style={[styles.container, style]}>
       <Text style={styles.title}>Send SMS</Text>
 
-      {/* Send Method Selection */}
+      {}
       <View style={styles.methodContainer}>
         <Text style={styles.label}>Send Method:</Text>
         <View style={styles.methodButtons}>
@@ -167,7 +151,7 @@ const SMSComponent = ({
         </View>
       </View>
 
-      {/* Phone Number Input (for single SMS) */}
+      {}
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Phone Number:</Text>
         <TextInput
@@ -180,7 +164,7 @@ const SMSComponent = ({
         />
       </View>
 
-      {/* Message Input */}
+      {}
       <View style={styles.inputContainer}>
         <Text style={styles.label}>Message:</Text>
         <TextInput
@@ -194,7 +178,7 @@ const SMSComponent = ({
         />
       </View>
 
-      {/* Action Buttons */}
+      {}
       <View style={styles.buttonContainer}>
         <TouchableOpacity
           style={[styles.button, styles.sendButton]}
@@ -219,7 +203,7 @@ const SMSComponent = ({
         )}
       </View>
 
-      {/* Info Text */}
+      {}
       <Text style={styles.infoText}>
         {sendMethod === 'direct'
           ? 'Direct SMS: Sends SMS directly without opening SMS app (Android only)'

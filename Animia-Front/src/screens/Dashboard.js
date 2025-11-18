@@ -1,4 +1,4 @@
-// src/screens/Dashboard.js  — fixed role init + loading logic + flatlist flex
+
 import React, {useCallback, useRef, useState, useEffect} from 'react';
 import {useDispatch} from 'react-redux';
 import {
@@ -20,7 +20,6 @@ import {
   spacing,
   typography,
   borderRadius,
-  shadows,
   platform,
 } from '../theme/theme';
 
@@ -37,6 +36,7 @@ import {logout} from '../store/authSlice';
 import {useSelector} from 'react-redux';
 import SendSMS from '../components/SendSMS';
 import Search from './Search';
+import Input from '../components/Input';
 
 const TILE_DATA = [
   {
@@ -82,13 +82,35 @@ const Dashboard = ({navigation}) => {
   const authState = useSelector(state => state.auth);
   const isAuthenticated = authState?.isAuthenticated || false;
   const reduxRole = authState?.role || null;
+  const selectedBeneficiary = authState?.selectedBeneficiary || null;
+  const user = authState?.user || null;
 
   const [menuVisible, setMenuVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [smsModalVisible, setSmsModalVisible] = useState(false);
   const [role, setRoleState] = useState(undefined);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const menuSlideAnim = useRef(new Animated.Value(-screenWidth)).current;
 
   const animValues = useRef(TILE_DATA.map(() => new Animated.Value(0))).current;
+
+  useEffect(() => {
+    if (menuVisible) {
+      Animated.timing(menuSlideAnim, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      Animated.timing(menuSlideAnim, {
+        toValue: -screenWidth,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [menuVisible, menuSlideAnim]);
   const entryAnimation = useCallback(() => {
     const seq = animValues.map((v, i) =>
       Animated.timing(v, {
@@ -106,20 +128,30 @@ const Dashboard = ({navigation}) => {
   }, [entryAnimation]);
 
   useEffect(() => {
-    // Use Redux auth state instead of checking AsyncStorage directly
+    if (reduxRole === 'Patient' && selectedBeneficiary) {
+      navigation.replace('BeneficiaryDetail', {
+        record: selectedBeneficiary,
+        readOnly: true,
+        fromPatientList: true,
+      });
+    }
+  }, [reduxRole, selectedBeneficiary, navigation]);
+
+  useEffect(() => {
+    
     if (!isAuthenticated && !reduxRole) {
       return;
     }
 
     if (!isAuthenticated) {
-      // This should not happen as AuthNavigator should handle this
+      
       return;
     }
 
     if (reduxRole) {
       setRoleState(reduxRole);
     } else {
-      setRoleState('admin'); // Default to admin if authenticated but no role
+      setRoleState('admin'); 
     }
   }, [isAuthenticated, reduxRole]);
 
@@ -134,10 +166,9 @@ const Dashboard = ({navigation}) => {
     setMenuVisible(false);
     setExporting(true);
     try {
-      // Fetch beneficiaries with all related data (screening, intervention, follow-up)
+      
       const response = await API.getBeneficiariesWithData(1000);
 
-      // Extract data from response
       const data = response?.data || response;
 
       if (!Array.isArray(data) || data.length === 0) {
@@ -145,10 +176,8 @@ const Dashboard = ({navigation}) => {
         return;
       }
 
-      // Create comprehensive export data with screening and intervention details
       const exportData = [];
 
-      // Helper function to safely convert values to strings
       const safeString = value => {
         if (value === null || value === undefined) return '';
         if (typeof value === 'string') return value;
@@ -167,16 +196,14 @@ const Dashboard = ({navigation}) => {
         try {
           return String(value);
         } catch (e) {
-          console.warn('[Dashboard] Failed to convert value:', value, e);
           return '';
         }
       };
 
       data.forEach((beneficiary, index) => {
-        // Create a comprehensive row with all beneficiary data
+        
         const exportRow = {};
 
-        // Basic beneficiary information
         exportRow['Name'] = safeString(beneficiary.name);
         exportRow['Age'] = safeString(beneficiary.age);
         exportRow['Gender'] = safeString(beneficiary.gender);
@@ -196,11 +223,9 @@ const Dashboard = ({navigation}) => {
         exportRow['Created At'] = safeString(beneficiary.created_at);
         exportRow['Updated At'] = safeString(beneficiary.updated_at);
 
-        // Doctor information
         exportRow['Doctor Name'] = safeString(beneficiary.doctor_name);
         exportRow['Doctor Phone'] = safeString(beneficiary.doctor_phone);
 
-        // Latest screening data
         exportRow['Latest Hb Level'] = safeString(
           beneficiary.latest_hemoglobin || beneficiary.hb,
         );
@@ -213,7 +238,6 @@ const Dashboard = ({navigation}) => {
           beneficiary.last_screening_date,
         );
 
-        // Latest intervention data
         exportRow['Intervention ID'] = safeString(beneficiary.intervention_id);
         exportRow['IFA Given'] = safeString(beneficiary.intervention_ifa_yes);
         exportRow['Calcium Given'] = safeString(
@@ -232,7 +256,6 @@ const Dashboard = ({navigation}) => {
           beneficiary.last_intervention_date,
         );
 
-        // Additional fields
         exportRow['Front Document'] = safeString(beneficiary.front_document);
         exportRow['Back Document'] = safeString(beneficiary.back_document);
         exportRow['Calcium Quantity'] = safeString(beneficiary.calcium_qty);
@@ -347,7 +370,6 @@ const Dashboard = ({navigation}) => {
         },
       ];
 
-      // Combine summary and data
       const finalExportData = [...summaryRows, ...exportData];
       await exportJsonToXlsx(finalExportData, 'Animia_Complete_Data');
 
@@ -356,7 +378,6 @@ const Dashboard = ({navigation}) => {
         `Successfully exported ${exportData.length} beneficiaries with screening and intervention data. The file has been saved to your device.`,
       );
     } catch (e) {
-      console.error('[Dashboard] Export error:', e);
       Alert.alert('Export Failed', `Error exporting data: ${e.message}`);
     } finally {
       setExporting(false);
@@ -391,13 +412,12 @@ const Dashboard = ({navigation}) => {
     <View style={styles.dashboardHeader}>
       <View style={styles.welcomeCard}>
         <Text style={styles.welcomeSubtitle}>
-          Anaemia Prevention & Control System
+          Anaemia Shield
         </Text>
       </View>
     </View>
   );
 
-  // Logout function
   const handleLogout = useCallback(async () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [
       {
@@ -409,29 +429,113 @@ const Dashboard = ({navigation}) => {
         style: 'destructive',
         onPress: async () => {
           try {
-            // Clear role from AsyncStorage
+            
             await clearRole();
-            // Dispatch logout action to clear Redux state
+            
             dispatch(logout());
-            // Reset local state
+            
             setRoleState(null);
             setMenuVisible(false);
-            // AuthNavigator will automatically redirect to AdminLogin
-            // No need to manually navigate
+
           } catch (error) {
-            console.error('Logout error:', error);
-            // Even if there's an error, still try to logout
+            
             dispatch(logout());
             setRoleState(null);
             setMenuVisible(false);
-            // AuthNavigator will handle the redirect
+            
           }
         },
       },
     ]);
   }, [dispatch, navigation]);
 
-  // show loader while role is being resolved or auth state is not ready
+  const confirmDeletePatientAccount = useCallback(async () => {
+    setDeleting(true);
+    try {
+      const response = await API.deletePatientAccount();
+      
+      if (response.success) {
+        Alert.alert(
+          'Account Deleted',
+          'Your account has been deleted successfully. Your data has been anonymized.',
+          [
+            {
+              text: 'OK',
+              onPress: async () => {
+                await clearRole();
+                dispatch(logout());
+              },
+            },
+          ],
+        );
+      } else {
+        Alert.alert('Error', response.message || 'Failed to delete account');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        error?.data?.message || error?.message || 'Failed to delete account. Please try again.',
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }, [dispatch]);
+
+  const handleDeleteAccount = useCallback(() => {
+    if (reduxRole === 'Admin') {
+      setShowPasswordModal(true);
+    } else {
+      Alert.alert(
+        'Delete Account',
+        'Are you sure you want to delete your account? This action cannot be undone. Your data will be anonymized.',
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {text: 'Delete', style: 'destructive', onPress: confirmDeletePatientAccount},
+        ],
+      );
+    }
+  }, [reduxRole, confirmDeletePatientAccount]);
+
+  const confirmDeleteAdminAccount = useCallback(async () => {
+    if (!password.trim()) {
+      Alert.alert('Error', 'Please enter your password');
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await API.deleteAdminAccount({password});
+      
+      if (response.success) {
+        Alert.alert(
+          'Account Deleted',
+          'Your account has been deleted successfully.',
+          [
+            {
+              text: 'OK',
+              onPress: async () => {
+                await clearRole();
+                dispatch(logout());
+              },
+            },
+          ],
+        );
+      } else {
+        Alert.alert('Error', response.message || 'Failed to delete account');
+        setPassword('');
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        error?.data?.message || error?.message || 'Failed to delete account. Please try again.',
+      );
+      setPassword('');
+    } finally {
+      setDeleting(false);
+      setShowPasswordModal(false);
+    }
+  }, [password, dispatch]);
+
   if (role === undefined || !authState) {
     return (
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
@@ -441,7 +545,6 @@ const Dashboard = ({navigation}) => {
     );
   }
 
-  // now role is known (string like 'Patient' or 'Admin')
   const isPatient = String(role || '').toLowerCase() === 'patient';
   const visibleTiles = isPatient
     ? TILE_DATA.filter(t => ['search', 'information'].includes(t.key))
@@ -449,7 +552,7 @@ const Dashboard = ({navigation}) => {
   return (
     <View style={styles.root}>
       <Header
-        title="Anemia Prevention"
+        title="Anaemia Shield"
         onMenuPress={() => setMenuVisible(true)}
         rightIcon2Name="information-outline"
         onRightIcon2Press={() => navigation.navigate('Information')}
@@ -463,10 +566,10 @@ const Dashboard = ({navigation}) => {
         contentContainerStyle={styles.container}
         showsVerticalScrollIndicator={false}>
         {isPatient ? (
-          // Search component for patient users (without header)
+          
           <Search navigation={navigation} hideHeader={true} />
         ) : (
-          // Quick Actions for admin users
+          
           <>
             <View style={styles.quickActionsHeader}>
               <View style={styles.quickActionsTitleContainer}>
@@ -517,27 +620,33 @@ const Dashboard = ({navigation}) => {
         )}
       </ScrollView>
 
-      <Modal
-        visible={menuVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setMenuVisible(false)}>
-        <View style={styles.modalOverlay}>
+      {menuVisible && (
+        <View style={styles.drawerOverlay}>
           <TouchableOpacity
-            style={styles.modalBackdrop}
+            style={styles.drawerBackdrop}
             onPress={() => setMenuVisible(false)}
             activeOpacity={1}
           />
-          <View style={styles.menuCard}>
-            {/* Menu Header */}
+          <Animated.View
+            style={[
+              styles.drawerMenu,
+              {
+                transform: [{translateX: menuSlideAnim}],
+              },
+            ]}>
+            {}
             <View style={styles.menuHeader}>
               <View style={styles.userInfo}>
                 <View style={styles.userAvatar}>
                   <Icon name="account" size={24} color={colors.white} />
                 </View>
                 <View style={styles.userDetails}>
-                  <Text style={styles.userName}>Welcome Back!</Text>
-                  <Text style={styles.userRole}>{role || 'User'}</Text>
+                  <Text style={styles.userName}>
+                    {user?.name
+                      ? `Welcome back, ${user.name}!`
+                      : 'Welcome Back!'}
+                  </Text>
+                  {}
                 </View>
               </View>
               <TouchableOpacity
@@ -547,8 +656,11 @@ const Dashboard = ({navigation}) => {
               </TouchableOpacity>
             </View>
 
-            {/* Menu Items */}
-            <View style={styles.menuItems}>
+            {}
+            <ScrollView 
+              style={styles.menuItemsContainer}
+              contentContainerStyle={styles.menuItems}
+              showsVerticalScrollIndicator={false}>
               {!isPatient && (
                 <>
                   <TouchableOpacity
@@ -607,6 +719,40 @@ const Dashboard = ({navigation}) => {
               )}
               <View style={styles.menuDivider} />
               <TouchableOpacity
+                style={[styles.menuItem, styles.deleteItem]}
+                onPress={() => {
+                  setMenuVisible(false);
+                  handleDeleteAccount();
+                }}
+                activeOpacity={0.7}
+                disabled={deleting}>
+                <View
+                  style={[
+                    styles.menuIconContainer,
+                    {backgroundColor: colors.errorLight},
+                  ]}>
+                  <Icon name="delete-outline" size={20} color={colors.error} />
+                </View>
+                <View style={styles.menuItemContent}>
+                  <Text style={[styles.menuItemText, {color: colors.error}]}>
+                    Delete Account
+                  </Text>
+                  <Text style={styles.menuItemSubtext}>
+                    Permanently delete your account
+                  </Text>
+                </View>
+                {deleting ? (
+                  <ActivityIndicator size="small" color={colors.error} />
+                ) : (
+                  <Icon
+                    name="chevron-right"
+                    size={16}
+                    color={colors.error}
+                  />
+                )}
+              </TouchableOpacity>
+              <View style={styles.menuDivider} />
+              <TouchableOpacity
                 style={[styles.menuItem, styles.logoutItem]}
                 onPress={handleLogout}
                 activeOpacity={0.7}>
@@ -631,16 +777,63 @@ const Dashboard = ({navigation}) => {
                   color={colors.textSecondary}
                 />
               </TouchableOpacity>
-            </View>
-          </View>
+            </ScrollView>
+          </Animated.View>
         </View>
-      </Modal>
+      )}
 
       {exporting && (
         <View style={styles.loading}>
           <ActivityIndicator size="large" color="#fff" />
         </View>
       )}
+
+      {}
+      <Modal
+        visible={showPasswordModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowPasswordModal(false);
+          setPassword('');
+        }}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalSubtitle}>
+              Enter your password to confirm account deletion. This action cannot be undone.
+            </Text>
+            <Input
+              label="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholder="Enter your password"
+              autoFocus
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => {
+                  setShowPasswordModal(false);
+                  setPassword('');
+                }}>
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.deleteButton]}
+                onPress={confirmDeleteAdminAccount}
+                disabled={deleting || !password.trim()}>
+                {deleting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.deleteButtonText}>Delete Account</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <SendSMS
         visible={smsModalVisible}
@@ -656,7 +849,7 @@ const styles = StyleSheet.create({
   root: {flex: 1, backgroundColor: colors.background},
   scrollContainer: {flex: 1},
   container: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingTop: spacing.sm,
     paddingBottom: spacing.lg,
   },
@@ -665,11 +858,15 @@ const styles = StyleSheet.create({
   },
   welcomeCard: {
     borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     marginBottom: spacing.sm,
     backgroundColor: colors.surface,
-    ...shadows.sm,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   welcomeTitle: {
     ...typography.title,
@@ -713,7 +910,7 @@ const styles = StyleSheet.create({
   quickActionButton: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -744,15 +941,15 @@ const styles = StyleSheet.create({
     height: 24,
     borderRadius: 12,
   },
-  modalOverlay: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-    paddingTop: 60,
-    paddingLeft: spacing.horizontal, // 16px left
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
   },
-  modalBackdrop: {
+  drawerBackdrop: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -760,19 +957,28 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
-  menuCard: {
-    width: 320,
+  drawerMenu: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: screenWidth * 0.85,
+    maxWidth: 320,
     backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    ...shadows.xl,
-    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 8},
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
+    zIndex: 1001,
   },
   menuHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.lg,
+    paddingTop: spacing.xl + spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderLight,
   },
@@ -811,13 +1017,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  menuItemsContainer: {
+    flex: 1,
+  },
   menuItems: {
     paddingVertical: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     marginHorizontal: spacing.sm,
     borderRadius: borderRadius.md,
@@ -847,11 +1057,14 @@ const styles = StyleSheet.create({
   menuDivider: {
     height: 1,
     backgroundColor: colors.borderLight,
-    marginHorizontal: spacing.horizontal, // 16px left/right
+    marginHorizontal: spacing.horizontal, 
     marginVertical: spacing.sm,
   },
   logoutItem: {
     backgroundColor: colors.errorLight + '20',
+  },
+  deleteItem: {
+    backgroundColor: colors.errorLight + '15',
   },
   loading: {
     position: 'absolute',
@@ -862,6 +1075,58 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.35)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.lg,
+    width: '85%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: typography.sizes.xl,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  modalSubtitle: {
+    fontSize: typography.sizes.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+    lineHeight: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  modalButton: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: colors.border,
+  },
+  cancelButtonText: {
+    color: colors.text,
+    fontWeight: typography.weights.medium,
+  },
+  deleteButton: {
+    backgroundColor: colors.error,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontWeight: typography.weights.bold,
   },
 });
 

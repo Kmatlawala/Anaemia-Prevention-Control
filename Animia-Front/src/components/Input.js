@@ -1,4 +1,4 @@
-// src/components/Input.js
+
 import React from 'react';
 import { TextInput, StyleSheet } from 'react-native';
 import { colors, spacing } from '../theme/theme';
@@ -8,7 +8,7 @@ const Input = ({ style, ...props }) => (
 );
 
 const styles = StyleSheet.create({
-  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.horizontal, // 16px left/right
+  input: { borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm, backgroundColor: colors.surface, color: colors.text }
 });
 

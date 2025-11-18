@@ -1,4 +1,4 @@
-// src/utils/ocr.js
+
 export const normalizeLines = (rawText) =>
     rawText
       .split(/\r?\n/)

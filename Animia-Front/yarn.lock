@@ -3013,6 +3013,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@react-native-google-signin/google-signin@npm:^13.1.0":
+  version: 13.3.1
+  resolution: "@react-native-google-signin/google-signin@npm:13.3.1"
+  peerDependencies:
+    expo: ">=50.0.0"
+    react: "*"
+    react-dom: "*"
+    react-native: "*"
+  peerDependenciesMeta:
+    expo:
+      optional: true
+    react-dom:
+      optional: true
+  checksum: 10cb250fea7db954b80f18f9d6e5114fde4548c72d3e1be013d5d7b54badd26651296cbe5874e03259ce20ed801b44b787949d5b62bccdb3793580c4894ac350
+  languageName: node
+  linkType: hard
+
 "@react-native-ml-kit/text-recognition@npm:^2.0.0":
   version: 2.0.0
   resolution: "@react-native-ml-kit/text-recognition@npm:2.0.0"
@@ -3957,6 +3974,7 @@ __metadata:
     "@react-native-firebase/in-app-messaging": ^23.4.0
     "@react-native-firebase/messaging": ^23.4.0
     "@react-native-firebase/storage": 23.4.0
+    "@react-native-google-signin/google-signin": ^13.1.0
     "@react-native-ml-kit/text-recognition": ^2.0.0
     "@react-native-picker/picker": ^2.11.2
     "@react-native/babel-preset": 0.76.9

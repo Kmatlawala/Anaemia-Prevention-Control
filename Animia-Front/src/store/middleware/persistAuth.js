@@ -22,7 +22,6 @@ export const loadAuthState = async () => {
       return JSON.parse(authState);
     }
   } catch (error) {
-    console.error('Error loading auth state:', error);
-  }
+    }
   return null;
 };

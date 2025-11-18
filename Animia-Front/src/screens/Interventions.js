@@ -28,6 +28,12 @@ import {RadioButton, TouchableRipple} from 'react-native-paper';
 import {API} from '../utils/api';
 import {useDispatch, useSelector} from 'react-redux';
 import {
+  getIFARecommendation,
+  getIFAPriority,
+  getIFAPriorityColor,
+  getIFAAgeGroup,
+} from '../utils/ifaRecommendations';
+import {
   fetchBeneficiaries,
   selectBeneficiaries,
   selectBeneficiaryLoading,
@@ -39,7 +45,6 @@ import NetworkStatus from '../components/NetworkStatus';
 const GAP = spacing.md;
 const HALF = Math.max(6, spacing.xs);
 
-/* ---------- Small helper: Yes/No radio row ---------- */
 const YesNoRow = ({label, value, onChange, error, required}) => {
   const labelColor = error ? '#D9534F' : colors.text;
   return (
@@ -85,12 +90,10 @@ const Interventions = ({route, navigation}) => {
   const beneficiaryData = route?.params?.beneficiaryData || null;
   const fromFlow = route?.params?.fromFlow || false;
 
-  // Get beneficiaries from Redux store (with offline caching)
   const beneficiaries = useSelector(selectBeneficiaries);
   const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
   const beneficiaryError = useSelector(selectBeneficiaryError);
 
-  // Search and selection states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -118,12 +121,10 @@ const Interventions = ({route, navigation}) => {
   const [showThankYou, setShowThankYou] = useState(false);
   const scrollRef = useRef(null);
 
-  // Load beneficiaries on component mount
   useEffect(() => {
     dispatch(fetchBeneficiaries());
   }, [dispatch]);
 
-  // Auto-select beneficiary if coming from flow
   useEffect(() => {
     if (fromFlow && beneficiaryData) {
       setSelectedBeneficiary(beneficiaryData);
@@ -131,7 +132,6 @@ const Interventions = ({route, navigation}) => {
     }
   }, [fromFlow, beneficiaryData]);
 
-  // Search functionality
   useEffect(() => {
     const searchBeneficiaries = async () => {
       if (searchQuery.length < 2) {
@@ -142,13 +142,10 @@ const Interventions = ({route, navigation}) => {
 
       setIsSearching(true);
       try {
-        // Fetch beneficiaries from Redux store (with offline caching)
         await dispatch(fetchBeneficiaries());
 
-        // Use beneficiaries from Redux store
         const allBeneficiaries = beneficiaries;
         if (!Array.isArray(allBeneficiaries) || allBeneficiaries.length === 0) {
-          console.warn('[Interventions] No beneficiaries data available');
           setSearchResults([]);
           setShowSearchResults(false);
           return;
@@ -171,7 +168,6 @@ const Interventions = ({route, navigation}) => {
               .includes(searchQuery.toLowerCase()),
         );
 
-        // Transform the data to include latest_screening and latest_intervention objects
         const transformedBeneficiaries = filtered.map(beneficiary => ({
           ...beneficiary,
           latest_screening: beneficiary.latest_hemoglobin
@@ -201,7 +197,6 @@ const Interventions = ({route, navigation}) => {
         setSearchResults(transformedBeneficiaries);
         setShowSearchResults(true);
       } catch (error) {
-        console.error('Search error:', error);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -218,7 +213,6 @@ const Interventions = ({route, navigation}) => {
     setShowSearchResults(false);
   };
 
-  // ---------- validation ----------
   const runValidation = () => {
     const v = {};
     if (!selectedBeneficiary)
@@ -262,7 +256,6 @@ const Interventions = ({route, navigation}) => {
       return;
     }
 
-    // Check if beneficiaryId is valid
     if (!selectedBeneficiary || !selectedBeneficiary.id) {
       Alert.alert('Error', 'Please select a beneficiary first.');
       return;
@@ -291,7 +284,6 @@ const Interventions = ({route, navigation}) => {
         }),
       );
 
-      // Show thank you popup if coming from flow
       if (fromFlow) {
         setShowThankYou(true);
       } else {
@@ -299,7 +291,6 @@ const Interventions = ({route, navigation}) => {
         navigation.goBack();
       }
     } catch (e) {
-      console.error('Intervention save error:', e);
       const errorMessage = e.data?.error || e.message || 'Unknown error';
       Alert.alert(
         'Save failed',
@@ -333,7 +324,7 @@ const Interventions = ({route, navigation}) => {
         </Text>
       )}
 
-      {/* Display screening data if available */}
+      {}
       {item.latest_hemoglobin && (
         <View style={styles.screeningDataContainer}>
           <Text style={styles.screeningDataTitle}>Latest Screening:</Text>
@@ -355,7 +346,7 @@ const Interventions = ({route, navigation}) => {
         </View>
       )}
 
-      {/* Display intervention data if available */}
+      {}
       {item.intervention_id && (
         <View style={styles.interventionDataContainer}>
           <Text style={styles.interventionDataTitle}>Latest Intervention:</Text>
@@ -407,6 +398,14 @@ const Interventions = ({route, navigation}) => {
         variant="back"
         onBackPress={() => navigation.goBack()}
         rightIconName="pill"
+        rightIconPress={() => {
+          if (selectedBeneficiary) {
+            navigation.navigate('Registration', {
+              record: selectedBeneficiary,
+              fromFlow: true,
+            });
+          }
+        }}
       />
 
       <ProgressIndicator currentStep={3} totalSteps={3} />
@@ -417,10 +416,10 @@ const Interventions = ({route, navigation}) => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Intervention Details</Text>
 
-          {/* Beneficiary Info - Show search only if not from flow */}
+          {}
           {!fromFlow ? (
             <>
-              {/* Beneficiary Search */}
+              {}
               <View style={styles.fieldBlock}>
                 <View style={styles.fieldHeader}>
                   <Icon
@@ -475,7 +474,7 @@ const Interventions = ({route, navigation}) => {
                 )}
               </View>
 
-              {/* Selected Beneficiary Info */}
+              {}
               {selectedBeneficiary && (
                 <View style={styles.selectedBeneficiaryContainer}>
                   <Text style={styles.selectedBeneficiaryTitle}>
@@ -498,7 +497,6 @@ const Interventions = ({route, navigation}) => {
               )}
             </>
           ) : (
-            /* Show beneficiary details directly when coming from flow */
             selectedBeneficiary && (
               <View style={styles.selectedBeneficiaryContainer}>
                 <Text style={styles.selectedBeneficiaryTitle}>
@@ -542,6 +540,173 @@ const Interventions = ({route, navigation}) => {
           )}
           {!!err('ifaQty') && (
             <Text style={styles.errorText}>{err('ifaQty')}</Text>
+          )}
+
+          {}
+          {ifaYes === 'yes' && selectedBeneficiary && (
+            <View style={styles.ifaRecommendationContainer}>
+              {(() => {
+                const age = Number(selectedBeneficiary.age) || 0;
+                const gender = selectedBeneficiary.gender || 'female';
+                const isPregnant = selectedBeneficiary.is_pregnant || false;
+                const isLactating = selectedBeneficiary.is_lactating || false;
+                const anemiaCategory =
+                  selectedBeneficiary.category || 'Unknown';
+
+                const recommendation = getIFARecommendation(
+                  age,
+                  gender,
+                  isPregnant,
+                  isLactating,
+                  anemiaCategory,
+                );
+
+                const priority = getIFAPriority(
+                  anemiaCategory,
+                  isPregnant,
+                  isLactating,
+                );
+                const priorityColor = getIFAPriorityColor(priority);
+                const ageGroup = getIFAAgeGroup(
+                  age,
+                  gender,
+                  isPregnant,
+                  isLactating,
+                );
+
+                if (!recommendation.shouldSupplement) {
+                  return (
+                    <View
+                      style={[
+                        styles.ifaRecommendationBox,
+                        {borderLeftColor: '#9E9E9E'},
+                      ]}>
+                      <Text style={styles.ifaRecommendationTitle}>
+                        IFA Recommendation:
+                      </Text>
+                      <Text style={styles.ifaRecommendationText}>
+                        IFA supplementation not recommended for this age
+                        group/category
+                      </Text>
+                    </View>
+                  );
+                }
+
+                return (
+                  <View
+                    style={[
+                      styles.ifaRecommendationBox,
+                      {borderLeftColor: priorityColor},
+                    ]}>
+                    <Text style={styles.ifaRecommendationTitle}>
+                      IFA Recommendation:
+                    </Text>
+                    <Text style={styles.ifaRecommendationCategory}>
+                      {ageGroup}
+                    </Text>
+
+                    <View style={styles.ifaRecommendationDetails}>
+                      <Text style={styles.ifaRecommendationLabel}>Dosage:</Text>
+                      <Text style={styles.ifaRecommendationValue}>
+                        {recommendation.dosage}
+                      </Text>
+                    </View>
+
+                    <View style={styles.ifaRecommendationDetails}>
+                      <Text style={styles.ifaRecommendationLabel}>
+                        Frequency:
+                      </Text>
+                      <Text style={styles.ifaRecommendationValue}>
+                        {recommendation.frequency}
+                      </Text>
+                    </View>
+
+                    <View style={styles.ifaRecommendationDetails}>
+                      <Text style={styles.ifaRecommendationLabel}>
+                        Duration:
+                      </Text>
+                      <Text style={styles.ifaRecommendationValue}>
+                        {recommendation.duration}
+                      </Text>
+                    </View>
+
+                    <View style={styles.ifaRecommendationDetails}>
+                      <Text style={styles.ifaRecommendationLabel}>
+                        Formulation:
+                      </Text>
+                      <Text style={styles.ifaRecommendationValue}>
+                        {recommendation.formulation}
+                      </Text>
+                    </View>
+
+                    {recommendation.color && (
+                      <View style={styles.ifaRecommendationDetails}>
+                        <Text style={styles.ifaRecommendationLabel}>
+                          Color:
+                        </Text>
+                        <Text style={styles.ifaRecommendationValue}>
+                          {recommendation.color}
+                        </Text>
+                      </View>
+                    )}
+
+                    {recommendation.notes.length > 0 && (
+                      <View style={styles.ifaRecommendationNotes}>
+                        <Text style={styles.ifaRecommendationNotesTitle}>
+                          Notes:
+                        </Text>
+                        {recommendation.notes.map((note, index) => (
+                          <Text
+                            key={index}
+                            style={styles.ifaRecommendationNote}>
+                            • {note}
+                          </Text>
+                        ))}
+                      </View>
+                    )}
+
+                    {recommendation.contraindications.length > 0 && (
+                      <View style={styles.ifaRecommendationContraindications}>
+                        <Text
+                          style={
+                            styles.ifaRecommendationContraindicationsTitle
+                          }>
+                          Contraindications:
+                        </Text>
+                        {recommendation.contraindications.map(
+                          (contraindication, index) => (
+                            <Text
+                              key={index}
+                              style={styles.ifaRecommendationContraindication}>
+                              ⚠️ {contraindication}
+                            </Text>
+                          ),
+                        )}
+                      </View>
+                    )}
+
+                    {recommendation.specialInstructions.length > 0 && (
+                      <View style={styles.ifaRecommendationSpecial}>
+                        <Text style={styles.ifaRecommendationSpecialTitle}>
+                          Special Instructions:
+                        </Text>
+                        {recommendation.specialInstructions.map(
+                          (instruction, index) => (
+                            <Text
+                              key={index}
+                              style={
+                                styles.ifaRecommendationSpecialInstruction
+                              }>
+                              ℹ️ {instruction}
+                            </Text>
+                          ),
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })()}
+            </View>
           )}
 
           <YesNoRow
@@ -652,7 +817,6 @@ const Interventions = ({route, navigation}) => {
         visible={showThankYou}
         onClose={() => setShowThankYou(false)}
         onComplete={() => {
-          // Reset form and navigate to dashboard
           setIfaYes('');
           setIfaQty('');
           setCalciumYes('');
@@ -697,7 +861,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 
-  // Field Styles
   fieldBlock: {marginBottom: GAP},
   fieldHeader: {
     flexDirection: 'row',
@@ -742,7 +905,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // Search results styles
   searchResultsContainer: {
     backgroundColor: colors.surface,
     borderRadius: 8,
@@ -755,7 +917,7 @@ const styles = StyleSheet.create({
     maxHeight: 200,
   },
   searchResultItem: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -780,7 +942,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
   },
   searchLoadingText: {
@@ -789,17 +951,16 @@ const styles = StyleSheet.create({
   },
   noResultsText: {
     textAlign: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     color: colors.textSecondary || '#666',
     fontStyle: 'italic',
   },
 
-  // Selected beneficiary styles
   selectedBeneficiaryContainer: {
     backgroundColor: colors.primary + '10',
     borderRadius: 8,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     marginBottom: GAP,
     borderWidth: 1,
@@ -845,7 +1006,6 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
   },
 
-  // Screening data display styles
   screeningDataContainer: {
     backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
@@ -888,7 +1048,6 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 
-  // Intervention data display styles
   interventionDataContainer: {
     backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
@@ -928,6 +1087,103 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontStyle: 'italic',
     marginTop: spacing.xs,
+    lineHeight: 14,
+  },
+
+  ifaRecommendationContainer: {
+    marginTop: spacing.sm,
+  },
+  ifaRecommendationBox: {
+    backgroundColor: colors.background,
+    borderLeftWidth: 4,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.xs,
+  },
+  ifaRecommendationTitle: {
+    fontSize: 14,
+    fontWeight: typography.weights.bold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  ifaRecommendationCategory: {
+    fontSize: 16,
+    fontWeight: typography.weights.bold,
+    color: colors.primary,
+    marginBottom: spacing.sm,
+  },
+  ifaRecommendationText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  ifaRecommendationDetails: {
+    flexDirection: 'row',
+    marginBottom: spacing.xs,
+  },
+  ifaRecommendationLabel: {
+    fontSize: 12,
+    fontWeight: typography.weights.semibold,
+    color: colors.text,
+    width: 80,
+  },
+  ifaRecommendationValue: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  ifaRecommendationNotes: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  ifaRecommendationNotesTitle: {
+    fontSize: 12,
+    fontWeight: typography.weights.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  ifaRecommendationNote: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    lineHeight: 14,
+  },
+  ifaRecommendationContraindications: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  ifaRecommendationContraindicationsTitle: {
+    fontSize: 12,
+    fontWeight: typography.weights.semibold,
+    color: '#F44336',
+    marginBottom: spacing.xs,
+  },
+  ifaRecommendationContraindication: {
+    fontSize: 11,
+    color: '#F44336',
+    marginBottom: spacing.xs,
+    lineHeight: 14,
+  },
+  ifaRecommendationSpecial: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  ifaRecommendationSpecialTitle: {
+    fontSize: 12,
+    fontWeight: typography.weights.semibold,
+    color: colors.primary,
+    marginBottom: spacing.xs,
+  },
+  ifaRecommendationSpecialInstruction: {
+    fontSize: 11,
+    color: colors.primary,
+    marginBottom: spacing.xs,
     lineHeight: 14,
   },
 });

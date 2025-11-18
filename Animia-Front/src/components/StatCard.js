@@ -1,4 +1,4 @@
-// src/components/StatCard.js
+
 import React from 'react';
 import {
   View,

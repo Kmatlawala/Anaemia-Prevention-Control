@@ -1,574 +1,430 @@
-// src/screens/AdminLogin.js — fixed, cross‑platform, spec-compliant
-import React, {useEffect, useMemo, useState} from 'react';
+
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  ActivityIndicator,
+  TextInput,
   Alert,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
-  Dimensions,
 } from 'react-native';
-import {useDispatch, useSelector} from 'react-redux';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
-import LinearGradient from 'react-native-linear-gradient';
-import Input from '../components/Input';
-import Header from '../components/Header';
 import {
   colors,
   spacing,
   typography,
   borderRadius,
   shadows,
-  platform,
 } from '../theme/theme';
-import {API, SERVER_CONFIG} from '../utils/api';
-import {setRole} from '../utils/role';
-import {loginSuccess, loginFailure, selectAuthError} from '../store/authSlice';
+import {useDispatch, useSelector} from 'react-redux';
+import {loginSuccess, loginFailure} from '../store/authSlice';
+import {API} from '../utils/api';
 
 const AdminLogin = ({navigation}) => {
   const dispatch = useDispatch();
-  const authError = useSelector(state => state.auth.error);
+  const {isAuthenticated, user, loading} = useSelector(state => state.auth);
 
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [setupMode, setSetupMode] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const canSetup = useMemo(
-    () => username.trim() && password.trim() && confirm.trim(),
-    [username, password, confirm],
-  );
+  const [errors, setErrors] = useState({});
+  const [needsFirstAdmin, setNeedsFirstAdmin] = useState(false);
+  const [checkingAdminStatus, setCheckingAdminStatus] = useState(true);
 
-  const checkUserExists = async username => {
+  useEffect(() => {
+    checkAdminStatus();
+  }, []);
+
+  useEffect(() => {
+
+    if (isAuthenticated && user?.role === 'Admin' && !isLoading) {
+      
+      navigation.reset({
+        index: 0,
+        routes: [{name: 'Dashboard'}],
+      });
+    }
+  }, []); 
+
+  const checkAdminStatus = async () => {
     try {
-      await API.adminRegister(username.trim(), 'dummy_check');
-      return false;
-    } catch (e) {
-      // If network error, assume user doesn't exist to allow registration attempt
-      if (e?.status === 0 || e?.data?.includes('Network error')) {
-        return false;
+      setCheckingAdminStatus(true);
+      const response = await API.checkAdminStatus();
+
+      if (response.success && response.needsFirstAdmin) {
+        setNeedsFirstAdmin(true);
       }
-      return e?.status === 409;
+    } catch (error) {
+      } finally {
+      setCheckingAdminStatus(false);
     }
   };
-  const onSetup = async () => {
-    if (!canSetup) {
-      Alert.alert('Required', 'All fields are required');
-      return;
+
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = 'Please enter a valid email address';
     }
-    if (password !== confirm) {
-      Alert.alert('Mismatch', 'Passwords do not match');
-      return;
+
+    if (!password.trim()) {
+      newErrors.password = 'Password is required';
+    } else if (password.length < 6) {
+      newErrors.password = 'Password must be at least 6 characters';
     }
-    if (password.length < 6) {
-      Alert.alert(
-        'Weak Password',
-        'Password must be at least 6 characters long',
-      );
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleLogin = async () => {
+    if (!validateForm()) {
       return;
     }
 
-    // Check if user already exists
-    const userExists = await checkUserExists(username);
-    if (userExists) {
-      Alert.alert(
-        'Username Taken',
-        'This username already exists. Please choose a different username or try logging in instead.',
-      );
-      setUsername(''); // Clear username field
-      return;
-    }
+    setIsLoading(true);
 
-    setLoading(true);
     try {
-      const response = await API.adminRegister(
-        username.trim(),
-        password.trim(),
-      );
-      await setRole('Admin');
-      dispatch(
-        loginSuccess({
-          user: username,
-          role: 'Admin',
-          token: response.token,
-        }),
-      );
-      Alert.alert('Welcome', 'Admin account created successfully!');
-      setSetupMode(false); // Exit setup mode after successful registration
-    } catch (e) {
-      if (e?.status === 0 || e?.data?.includes('Network error')) {
-        Alert.alert(
-          'Connection Error',
-          'Unable to connect to server. Please check your internet connection and try again.',
+      const response = await API.adminLogin({
+        email: email.trim().toLowerCase(),
+        password: password,
+      });
+
+      if (response.success) {
+        
+        dispatch(
+          loginSuccess({
+            user: {
+              id: response.user.id,
+              name: response.user.name,
+              email: response.user.email,
+              role: 'Admin',
+              permissions: response.user.permissions || [],
+            },
+            role: 'Admin',
+            token: response.token,
+            selectedBeneficiary: null, 
+            loginMethod: null,
+            loginValue: null,
+          }),
         );
-      } else if (e?.status === 409) {
-        Alert.alert(
-          'Username Taken',
-          'This username is already taken. Please choose a different username.',
-        );
-        setUsername(''); // Clear username field
-      } else if (e?.status === 400) {
-        Alert.alert(
-          'Invalid Input',
-          'Please provide valid username and password.',
-        );
+
+        navigation.replace('Dashboard');
       } else {
-        Alert.alert(
-          'Registration Failed',
-          'Unable to create account. Please try again.',
-        );
+        dispatch(loginFailure(response.message || 'Login failed'));
+        Alert.alert('Login Failed', response.message || 'Invalid credentials');
       }
+    } catch (error) {
+      dispatch(loginFailure('Network error. Please try again.'));
+      Alert.alert('Error', 'Failed to connect to server. Please try again.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const onLogin = async () => {
-    if (!username.trim() || !password.trim()) {
-      Alert.alert('Required', 'Enter username and password');
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await API.adminLogin(username.trim(), password.trim());
-      await setRole('Admin');
-      const authData = {
-        user: username,
-        role: 'Admin',
-        token: response.token,
-      };
-      dispatch(loginSuccess(authData));
-      Alert.alert('Welcome', 'Signed in as Admin');
-      navigation.navigate('Dashboard');
-    } catch (e) {
-      if (e?.status === 0 || e?.data?.includes('Network error')) {
-        Alert.alert(
-          'Connection Error',
-          'Unable to connect to server. Please check your internet connection and try again.',
-        );
-        setLoading(false);
-        return;
-      }
-
-      // Handle specific backend error responses
-      if (e?.status === 404 && e?.data?.errorType === 'USER_NOT_FOUND') {
-        Alert.alert(
-          'User Not Found',
-          'Username not found. Please create a new account.',
-        );
-        setSetupMode(true);
-        setConfirm('');
-        setPassword('');
-        setShowPassword(false);
-        setShowConfirmPassword(false);
-        return;
-      }
-
-      if (e?.status === 401 && e?.data?.errorType === 'WRONG_PASSWORD') {
-        Alert.alert(
-          'Wrong Password',
-          'The password you entered is incorrect. Please try again.',
-        );
-        setPassword(''); // Clear password field
-        return;
-      }
-
-      // Handle legacy 401 errors (fallback for old backend)
-      if (e?.status === 401) {
-        Alert.alert(
-          'Wrong Password',
-          'The password you entered is incorrect. Please try again.',
-        );
-        setPassword(''); // Clear password field
-        return;
-      }
-
-      if (e?.status === 400) {
-        Alert.alert(
-          'Invalid Input',
-          'Please enter both username and password.',
-        );
-      } else {
-        Alert.alert('Login Failed', 'Unable to login. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const onForgot = async () => {
+  const handleForgotPassword = () => {
     Alert.alert(
-      'Password reset',
-      'Please contact an administrator to reset your password.',
+      'Forgot Password',
+      'Please contact your system administrator to reset your password.',
+      [{text: 'OK'}],
     );
   };
 
+  const handleRegisterAdmin = () => {
+    if (needsFirstAdmin) {
+      navigation.navigate('FirstAdminSetup');
+    } else {
+      
+      navigation.navigate('AdminRegistration');
+    }
+  };
+
   return (
-    <View style={styles.screen}>
-      <Header
-        title="Admin Login"
-        variant="none"
-        // onBackPress={() => navigation.navigate('RoleSelect')} // COMMENTED OUT - No back navigation
-      />
-
-      <ScrollView
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        {/* Welcome Header */}
-        <View style={styles.welcomeHeader}>
-          <View style={styles.iconContainer}>
-            <Icon name="shield-account" size={32} color={colors.white} />
-          </View>
-          <Text style={styles.welcomeTitle}>
-            {setupMode ? 'Create Admin Account' : 'Administrator Login'}
-          </Text>
-          <Text style={styles.welcomeSubtitle}>
-            {setupMode
-              ? 'Set up your administrator account to manage the system'
-              : 'Sign in to access administrative features'}
-          </Text>
-        </View>
-
-        <View style={styles.card}>
-          <View style={styles.inputContainer}>
-            <Icon
-              name="account"
-              size={20}
-              color={colors.primary}
-              style={styles.inputIcon}
-            />
-            <Input
-              placeholder="Username"
-              value={username}
-              onChangeText={setUsername}
-              style={styles.input}
-            />
-          </View>
-          <View style={styles.inputContainer}>
-            <Icon
-              name="lock"
-              size={20}
-              color={colors.primary}
-              style={styles.inputIcon}
-            />
-            <View style={styles.passwordContainer}>
-              <Input
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                style={styles.passwordInput}
-              />
-              <TouchableOpacity
-                style={styles.eyeButton}
-                onPress={() => setShowPassword(!showPassword)}>
-                <Icon
-                  name={!showPassword ? 'eye-off-outline' : 'eye-outline'}
-                  size={22}
-                  color={colors.primary}
-                />
-              </TouchableOpacity>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <View style={styles.content}>
+          {}
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <Icon name="shield-account" size={64} color={colors.primary} />
             </View>
+            <Text style={styles.title}>Admin Login</Text>
+            <Text style={styles.subtitle}>
+              Access the Anaemia Health Management System
+            </Text>
           </View>
 
-          {setupMode && (
+          {}
+          <View style={styles.formContainer}>
             <View style={styles.inputContainer}>
-              <Icon
-                name="lock-check"
-                size={20}
-                color={colors.primary}
-                style={styles.inputIcon}
-              />
-              <View style={styles.passwordContainer}>
-                <Input
-                  placeholder="Confirm Password"
-                  value={confirm}
-                  onChangeText={setConfirm}
-                  secureTextEntry={!showConfirmPassword}
-                  style={styles.passwordInput}
+              <View style={styles.inputWrapper}>
+                <Icon name="email" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Admin Email"
+                  placeholderTextColor={colors.textSecondary}
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+              {errors.email && (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              )}
+            </View>
+
+            <View style={styles.inputContainer}>
+              <View style={styles.inputWrapper}>
+                <Icon name="lock" size={20} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  placeholder="Password"
+                  placeholderTextColor={colors.textSecondary}
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
                 <TouchableOpacity
                   style={styles.eyeButton}
-                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  onPress={() => setShowPassword(!showPassword)}>
                   <Icon
-                    name={
-                      !showConfirmPassword ? 'eye-off-outline' : 'eye-outline'
-                    }
-                    size={22}
-                    color={colors.primary}
+                    name={showPassword ? 'eye-off' : 'eye'}
+                    size={20}
+                    color={colors.textSecondary}
                   />
                 </TouchableOpacity>
               </View>
+              {errors.password && (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              )}
             </View>
-          )}
 
-          <TouchableOpacity
-            style={styles.btn}
-            onPress={setupMode ? onSetup : onLogin}
-            disabled={loading}
-            activeOpacity={0.8}>
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <View style={styles.btnContent}>
-                <Icon
-                  name={setupMode ? 'account-plus' : 'login'}
-                  size={20}
-                  color="#fff"
-                  style={styles.btnIcon}
-                />
-                <Text style={styles.btnText}>
-                  {setupMode ? 'Create Account' : 'Login'}
-                </Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {!setupMode && (
-            <TouchableOpacity onPress={onForgot} style={styles.forgotWrap}>
-              <Icon
-                name="help-circle-outline"
-                size={16}
-                color={colors.primary}
-              />
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-          )}
-
-          {setupMode && (
+            {}
             <TouchableOpacity
-              onPress={() => {
-                setSetupMode(false);
-                setConfirm('');
-                setPassword('');
-                setShowPassword(false);
-                setShowConfirmPassword(false);
-              }}
-              style={styles.forgotWrap}>
-              <Icon name="arrow-left" size={16} color={colors.primary} />
-              <Text style={styles.forgotText}>Back to Login</Text>
+              style={[
+                styles.loginButton,
+                isLoading && styles.loginButtonDisabled,
+              ]}
+              onPress={handleLogin}
+              disabled={isLoading}>
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <>
+                  <Icon name="login" size={20} color="#fff" />
+                  <Text style={styles.loginButtonText}>Login as Admin</Text>
+                </>
+              )}
             </TouchableOpacity>
-          )}
 
-          {setupMode && (
+            {}
             <TouchableOpacity
-              style={[styles.btn, styles.btnSecondary]}
-              onPress={async () => {
-                setLoading(true);
-                try {
-                  await API.adminRegister('admin', 'admin');
-                  Alert.alert(
-                    'Setup Complete',
-                    'Default admin account created successfully!\nUsername: admin\nPassword: admin\n\nYou can now login with these credentials.',
-                  );
-                  setSetupMode(false);
-                  setUsername('admin');
-                  setPassword('');
-                  setConfirm('');
-                } catch (e) {
-                  if (e?.status === 409) {
-                    Alert.alert(
-                      'Already Exists',
-                      'Default admin account already exists. You can login with admin/admin credentials.',
-                    );
-                    setSetupMode(false);
-                    setUsername('admin');
-                    setPassword('');
-                    setConfirm('');
-                  } else {
-                    Alert.alert(
-                      'Setup Failed',
-                      'Unable to create default admin account. Please try again.',
-                    );
-                  }
-                } finally {
-                  setLoading(false);
-                }
-              }}
-              disabled={loading}
-              activeOpacity={0.8}>
-              <View style={styles.btnContent}>
-                <Icon
-                  name="cog"
-                  size={20}
-                  color="#fff"
-                  style={styles.btnIcon}
-                />
-                <Text style={styles.btnText}>
-                  Create Default Admin (admin/admin)
-                </Text>
-              </View>
+              style={styles.forgotButton}
+              onPress={handleForgotPassword}>
+              <Text style={styles.forgotButtonText}>Forgot Password?</Text>
             </TouchableOpacity>
-          )}
-        </View>
 
-        {!setupMode && (
-          <View style={styles.bottomContainer}>
+            {}
             <TouchableOpacity
-              onPress={() => {
-                setSetupMode(true);
-                setShowPassword(false);
-                setShowConfirmPassword(false);
-              }}
-              style={[styles.btn, styles.btnSecondary]}
-              activeOpacity={0.8}>
-              <View style={styles.btnContent}>
-                <Icon
-                  name="account-plus"
-                  size={20}
-                  color="#fff"
-                  style={styles.btnIcon}
-                />
-                <Text style={styles.btnText}>Go to Admin Setup</Text>
-              </View>
+              style={styles.registerButton}
+              onPress={handleRegisterAdmin}>
+              <Text style={styles.registerButtonText}>
+                {needsFirstAdmin
+                  ? 'Create First Admin Account'
+                  : 'Register New Admin Account'}
+              </Text>
             </TouchableOpacity>
           </View>
-        )}
+
+          {}
+          <View style={styles.securityInfo}>
+            <View style={styles.securityItem}>
+              <Icon name="shield-check" size={16} color={colors.success} />
+              <Text style={styles.securityText}>
+                Secure authentication with JWT tokens
+              </Text>
+            </View>
+            <View style={styles.securityItem}>
+              <Icon name="lock" size={16} color={colors.success} />
+              <Text style={styles.securityText}>
+                All data is encrypted and protected
+              </Text>
+            </View>
+          </View>
+
+          {}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => {
+              
+              if (navigation.canGoBack()) {
+                navigation.goBack();
+              } else {
+                navigation.navigate('RoleSelect');
+              }
+            }}>
+            <Icon name="arrow-left" size={20} color={colors.textSecondary} />
+            <Text style={styles.backButtonText}>Back to Role Selection</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
-  screen: {flex: 1, backgroundColor: colors.background},
-  scrollContainer: {flex: 1},
-  scrollContent: {paddingBottom: spacing.xl},
-
-  // Welcome Header
-  welcomeHeader: {
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: spacing.horizontal,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
+  },
+  header: {
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
-    paddingVertical: spacing.xl,
+    marginBottom: spacing.xl,
   },
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary + '20',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
-    ...shadows.md,
+    marginBottom: spacing.lg,
   },
-  welcomeTitle: {
+  title: {
     ...typography.title,
     color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
     fontWeight: typography.weights.bold,
+    marginBottom: spacing.sm,
   },
-  welcomeSubtitle: {
+  subtitle: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
   },
-
-  // Card
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.horizontal,
-    paddingVertical: spacing.lg,
-    marginHorizontal: spacing.horizontal,
-    marginBottom: spacing.md,
-    ...shadows.md,
+  formContainer: {
+    marginBottom: spacing.xl,
   },
-
-  // Input Container
   inputContainer: {
+    marginBottom: spacing.lg,
+  },
+  inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
     backgroundColor: colors.background,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal,
-    borderWidth: 1,
-    borderColor: colors.borderLight,
-  },
-  inputIcon: {
-    marginRight: spacing.sm,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    ...shadows.sm,
   },
   input: {
     flex: 1,
-    marginBottom: 0,
-    borderWidth: 0,
-    backgroundColor: 'transparent',
-  },
-
-  // Buttons
-  btn: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.horizontal,
-    borderRadius: borderRadius.md,
-    alignItems: 'center',
-    marginTop: spacing.md,
-    ...shadows.sm,
-  },
-  btnSecondary: {
-    backgroundColor: colors.textSecondary,
-  },
-  btnContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  btnIcon: {
-    marginRight: spacing.sm,
-  },
-  btnText: {
-    color: '#fff',
-    fontWeight: typography.weights.semibold,
-    fontSize: 16,
-  },
-
-  // Forgot Password
-  forgotWrap: {
-    marginTop: spacing.md,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  forgotText: {
-    color: colors.primary,
-    marginLeft: spacing.xs,
-    fontWeight: typography.weights.medium,
-  },
-
-  // Bottom Container
-  bottomContainer: {
-    paddingHorizontal: spacing.horizontal,
-    marginTop: spacing.sm,
-  },
-
-  // Password field styles
-  passwordContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    position: 'relative',
+    ...typography.subtitle,
+    color: colors.text,
+    marginLeft: spacing.sm,
   },
   passwordInput: {
-    flex: 1,
-    marginBottom: 0,
-    borderWidth: 0,
-    backgroundColor: 'transparent',
+    marginRight: spacing.sm,
   },
   eyeButton: {
-    position: 'absolute',
-    right: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 15,
-    width: 30,
-    height: 30,
+    padding: spacing.xs,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.error,
+    marginTop: spacing.xs,
+    marginLeft: spacing.sm,
+  },
+  loginButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.sm,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.lg,
+    marginBottom: spacing.lg,
+    ...shadows.md,
+  },
+  loginButtonDisabled: {
+    backgroundColor: colors.textSecondary,
+  },
+  loginButtonText: {
+    ...typography.subtitle,
+    color: '#fff',
+    fontWeight: typography.weights.semibold,
+    marginLeft: spacing.sm,
+  },
+  forgotButton: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  forgotButtonText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: typography.weights.medium,
+  },
+  registerButton: {
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  registerButtonText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  securityInfo: {
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  securityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  securityText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
+    flex: 1,
+  },
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+  },
+  backButtonText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
   },
 });
 

@@ -48,10 +48,6 @@ export default function Notifications() {
       try {
         dataObj = item.data ? JSON.parse(item.data) : {};
       } catch (parseError) {
-        console.error(
-          '[Notifications] Failed to parse notification data:',
-          parseError,
-        );
         Alert.alert('Error', 'Invalid notification data');
         return;
       }
@@ -81,7 +77,6 @@ export default function Notifications() {
           });
           return;
         } catch (error) {
-          console.error('[Notifications] Error opening beneficiary:', error);
           Alert.alert(
             'Error',
             `Failed to open beneficiary details: ${error.message}`,
@@ -109,7 +104,6 @@ export default function Notifications() {
           });
           return;
         } catch (error) {
-          console.error('[Notifications] Error fetching by short_id:', error);
           Alert.alert(
             'Error',
             `Failed to find beneficiary with ID: ${shortId}`,
@@ -292,7 +286,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 
-  // Meta Styles
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -307,7 +300,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
-  // Empty State
   emptyContainer: {
     flex: 1,
     alignItems: 'center',

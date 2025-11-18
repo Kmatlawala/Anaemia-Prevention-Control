@@ -1,4 +1,4 @@
-// src/screens/Screening.js
+
 import React, {useMemo, useRef, useState, useEffect} from 'react';
 import {
   View,
@@ -29,6 +29,11 @@ import {API} from '../utils/api';
 import {sendPushToSelf} from '../utils/notifications';
 import {useDispatch, useSelector} from 'react-redux';
 import {
+  getAnemiaClassification,
+  getAgeGroup,
+  getAnemiaColor,
+} from '../utils/anemiaClassification';
+import {
   fetchBeneficiaries,
   selectBeneficiaries,
   selectBeneficiaryLoading,
@@ -37,8 +42,8 @@ import {
 } from '../store/beneficiarySlice';
 import NetworkStatus from '../components/NetworkStatus';
 
-const GAP = spacing.md; // vertical gap between fields
-const HALF = Math.max(6, spacing.xs); // small inner gaps
+const GAP = spacing.md; 
+const HALF = Math.max(6, spacing.xs); 
 
 const Screening = ({route, navigation}) => {
   const dispatch = useDispatch();
@@ -46,25 +51,46 @@ const Screening = ({route, navigation}) => {
   const beneficiaryData = route?.params?.beneficiaryData || null;
   const fromFlow = route?.params?.fromFlow || false;
 
-  // Get beneficiaries from Redux store (with offline caching)
   const beneficiaries = useSelector(selectBeneficiaries);
   const beneficiaryLoading = useSelector(selectBeneficiaryLoading);
   const beneficiaryError = useSelector(selectBeneficiaryError);
 
-  // Search and selection states
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [selectedBeneficiary, setSelectedBeneficiary] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Form states
   const [visitType, setVisitType] = useState('Primary');
   const [hb, setHb] = useState('');
   const [pallor, setPallor] = useState('');
+  const [pallorLocation, setPallorLocation] = useState([]);
   const [anemiaCategory, setAnemiaCategory] = useState('');
   const [hemoglobinLevel, setHemoglobinLevel] = useState('');
   const [symptoms, setSymptoms] = useState([]);
+
+  const anemiaSymptoms = [
+    'Fatigue',
+    'Weakness',
+    'Shortness of breath',
+    'Dizziness',
+    'Pale skin',
+    'Irregular heartbeat',
+    'Cold hands and feet',
+    'Headache',
+    'Chest pain',
+    'Brittle nails',
+    'Hair loss',
+    'Sore tongue',
+  ];
+
+  const toggleSymptom = symptom => {
+    setSymptoms(prev =>
+      prev.includes(symptom)
+        ? prev.filter(s => s !== symptom)
+        : [...prev, symptom],
+    );
+  };
 
   const [saving, setSaving] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
@@ -76,12 +102,38 @@ const Screening = ({route, navigation}) => {
     return Number.isFinite(v) ? v : NaN;
   }, [hb]);
 
-  // Load beneficiaries on component mount
+  useEffect(() => {
+    if (selectedBeneficiary && Number.isFinite(parsedHb) && parsedHb > 0) {
+      
+      const age = selectedBeneficiary.age || 0;
+      const gender = selectedBeneficiary.gender || 'female';
+      const isPregnant = selectedBeneficiary.is_pregnant || false;
+
+      const ageGroup = getAgeGroup(age, gender, isPregnant);
+
+      const classification = getAnemiaClassification(
+        parsedHb,
+        ageGroup,
+        gender,
+        isPregnant,
+      );
+
+      if (classification.category !== 'Unknown') {
+        setAnemiaCategory(classification.category);
+      }
+    }
+  }, [parsedHb, selectedBeneficiary]);
+
+  useEffect(() => {
+    if (pallor !== 'yes') {
+      setPallorLocation([]);
+    }
+  }, [pallor]);
+
   useEffect(() => {
     dispatch(fetchBeneficiaries());
   }, [dispatch]);
 
-  // Auto-select beneficiary if coming from flow
   useEffect(() => {
     if (fromFlow && beneficiaryData) {
       setSelectedBeneficiary(beneficiaryData);
@@ -89,7 +141,6 @@ const Screening = ({route, navigation}) => {
     }
   }, [fromFlow, beneficiaryData]);
 
-  // Search functionality
   useEffect(() => {
     const searchBeneficiaries = async () => {
       if (searchQuery.length < 2) {
@@ -100,13 +151,11 @@ const Screening = ({route, navigation}) => {
 
       setIsSearching(true);
       try {
-        // Fetch beneficiaries from Redux store (with offline caching)
+        
         await dispatch(fetchBeneficiaries());
 
-        // Use beneficiaries from Redux store
         const allBeneficiaries = beneficiaries;
         if (!Array.isArray(allBeneficiaries) || allBeneficiaries.length === 0) {
-          console.warn('[Screening] No beneficiaries data available');
           setSearchResults([]);
           setShowSearchResults(false);
           return;
@@ -129,7 +178,6 @@ const Screening = ({route, navigation}) => {
               .includes(searchQuery.toLowerCase()),
         );
 
-        // Transform the data to include latest_screening and latest_intervention objects
         const transformedBeneficiaries = filtered.map(beneficiary => ({
           ...beneficiary,
           latest_screening: beneficiary.latest_hemoglobin
@@ -159,7 +207,6 @@ const Screening = ({route, navigation}) => {
         setSearchResults(transformedBeneficiaries);
         setShowSearchResults(true);
       } catch (error) {
-        console.error('Search error:', error);
         setSearchResults([]);
       } finally {
         setIsSearching(false);
@@ -175,9 +222,8 @@ const Screening = ({route, navigation}) => {
     setSearchQuery(beneficiary.name);
     setShowSearchResults(false);
 
-    // Focus on visit type field
     setTimeout(() => {
-      // You can add focus logic here if needed
+      
     }, 100);
   };
 
@@ -194,7 +240,6 @@ const Screening = ({route, navigation}) => {
     const v = {};
 
     if (!selectedBeneficiary) v.beneficiary = 'Please select a beneficiary';
-    if (!visitType) v.visitType = 'Visit type is required';
 
     if (String(hb).trim() === '') v.hb = 'Enter Hb value';
     else if (!Number.isFinite(parsedHb)) v.hb = 'Enter a valid number';
@@ -202,6 +247,9 @@ const Screening = ({route, navigation}) => {
       v.hb = 'Hb must be between 0–25 g/dL';
 
     if (!pallor) v.pallor = 'Select pallor';
+    if (pallor === 'yes' && (!pallorLocation || pallorLocation.length === 0)) {
+      v.pallorLocation = 'Please select at least one pallor location';
+    }
     return v;
   };
 
@@ -214,7 +262,6 @@ const Screening = ({route, navigation}) => {
       return;
     }
 
-    // Additional check for selectedBeneficiary
     if (!selectedBeneficiary || !selectedBeneficiary.id) {
       Alert.alert('Error', 'Please select a beneficiary first.');
       return;
@@ -223,11 +270,15 @@ const Screening = ({route, navigation}) => {
     setSaving(true);
     try {
       const createdAt = dayjs().toISOString();
+      
       const visit = {
         hb: parsedHb,
         mcv: null,
-        symptoms: symptoms || null,
-        type: visitType,
+        symptoms:
+          Array.isArray(symptoms) && symptoms.length > 0
+            ? symptoms.join(', ')
+            : null,
+        type: 'Primary', 
         classification: pallor || null,
         severity: severity(),
         anemiaCategory: anemiaCategory || null,
@@ -235,26 +286,35 @@ const Screening = ({route, navigation}) => {
         beneficiaryId: selectedBeneficiary.id,
       };
 
+      const symptomsString =
+        Array.isArray(symptoms) && symptoms.length > 0
+          ? symptoms.join(', ')
+          : null;
+
       const screeningResult = await dispatch(
         addScreening({
           beneficiaryId: selectedBeneficiary.id,
           hemoglobin: visit.hb,
-          notes: visit.symptoms || null,
+          notes: symptomsString,
           anemia_category: visit.anemiaCategory,
           pallor: pallor,
-          visit_type: visitType,
+          pallor_location:
+            pallor === 'yes' && pallorLocation.length > 0
+              ? pallorLocation.join(', ')
+              : null,
+          visit_type: 'Primary', 
           severity: visit.severity,
           doctor_name: selectedBeneficiary.doctor_name,
         }),
       );
 
       if (visit.hb < 7) {
-        // Create a minimal follow-up entry as referral
+        
         await API.addFollowup(selectedBeneficiary.id, {
           followup_date: createdAt,
           notes: `Severe anaemia (Hb <7). Hb=${visit.hb}`,
         });
-        // Push an FCM alert locally. Replace with targeted push(s) via backend as needed.
+        
         await sendPushToSelf(
           'Severe Anaemia Alert',
           'Severe Anaemia detected (Hb <7). Please seek immediate care.',
@@ -267,18 +327,31 @@ const Screening = ({route, navigation}) => {
         `Screening saved successfully. Severity: ${visit.severity}`,
       );
 
-      // Navigate to Intervention if coming from flow
       if (fromFlow) {
+        
+        const updatedBeneficiary = {
+          ...selectedBeneficiary,
+          category: anemiaCategory,
+          latest_anemia_category: anemiaCategory,
+          
+          age: selectedBeneficiary.age || 0,
+          
+          gender: selectedBeneficiary.gender || 'female',
+          is_pregnant: selectedBeneficiary.is_pregnant || false,
+          is_lactating: selectedBeneficiary.is_lactating || false,
+        };
+
         navigation.navigate('Interventions', {
-          beneficiaryData: selectedBeneficiary,
+          beneficiaryData: updatedBeneficiary,
           fromFlow: true,
         });
       } else {
-        setVisitType('Primary');
+        
         setHb('');
         setPallor('');
+        setPallorLocation([]);
         setAnemiaCategory('');
-        setSymptoms('');
+        setSymptoms([]);
         setSearchQuery('');
         setSelectedBeneficiary(null);
         setShowErrors(false);
@@ -286,7 +359,6 @@ const Screening = ({route, navigation}) => {
         navigation.goBack();
       }
     } catch (e) {
-      console.error('Screening save error:', e);
       const errorMessage = e.data?.error || e.message || 'Unknown error';
       Alert.alert('Save failed', `Unable to save screening: ${errorMessage}`);
     } finally {
@@ -317,7 +389,7 @@ const Screening = ({route, navigation}) => {
         </Text>
       )}
 
-      {/* Display screening data if available */}
+      {}
       {item.latest_screening && (
         <View style={styles.screeningDataContainer}>
           <Text style={styles.screeningDataTitle}>Latest Screening:</Text>
@@ -339,7 +411,7 @@ const Screening = ({route, navigation}) => {
         </View>
       )}
 
-      {/* Display intervention data if available */}
+      {}
       {item.latest_intervention && (
         <View style={styles.interventionDataContainer}>
           <Text style={styles.interventionDataTitle}>Latest Intervention:</Text>
@@ -393,6 +465,14 @@ const Screening = ({route, navigation}) => {
         variant="back"
         onBackPress={() => navigation.goBack()}
         rightIconName="stethoscope"
+        rightIconPress={() => {
+          if (selectedBeneficiary) {
+            navigation.navigate('Registration', {
+              record: selectedBeneficiary,
+              fromFlow: true,
+            });
+          }
+        }}
       />
 
       <ProgressIndicator currentStep={2} totalSteps={3} />
@@ -403,10 +483,10 @@ const Screening = ({route, navigation}) => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Screening Details</Text>
 
-          {/* Beneficiary Info - Show search only if not from flow */}
+          {}
           {!fromFlow ? (
             <>
-              {/* Beneficiary Search */}
+              {}
               <View style={styles.fieldBlock}>
                 <View style={styles.fieldHeader}>
                   <Icon
@@ -461,7 +541,7 @@ const Screening = ({route, navigation}) => {
                 )}
               </View>
 
-              {/* Selected Beneficiary Info */}
+              {}
               {selectedBeneficiary && (
                 <View style={styles.selectedBeneficiaryContainer}>
                   <Text style={styles.selectedBeneficiaryTitle}>
@@ -484,7 +564,7 @@ const Screening = ({route, navigation}) => {
               )}
             </>
           ) : (
-            /* Show beneficiary details directly when coming from flow */
+            
             selectedBeneficiary && (
               <View style={styles.selectedBeneficiaryContainer}>
                 <Text style={styles.selectedBeneficiaryTitle}>
@@ -507,18 +587,12 @@ const Screening = ({route, navigation}) => {
             )
           )}
 
+          {}
           <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Visit Type</Text>
-            <Select
-              value={visitType}
-              onChange={setVisitType}
-              options={[
-                {label: 'Primary', value: 'Primary'},
-                {label: 'Follow-up', value: 'Follow-up'},
-              ]}
-              style={errStyle('visitType')}
-            />
-            {errText('visitType')}
+            <View style={styles.inlineLabel}>
+              <Text style={styles.label}>Visit Type: </Text>
+              <Text style={styles.primaryText}>Primary</Text>
+            </View>
           </View>
 
           <View style={styles.fieldBlock}>
@@ -530,6 +604,45 @@ const Screening = ({route, navigation}) => {
               style={errStyle('hb')}
             />
             {errText('hb')}
+
+            {}
+            {selectedBeneficiary &&
+              Number.isFinite(parsedHb) &&
+              parsedHb > 0 && (
+                <View style={styles.autoClassificationContainer}>
+                  {(() => {
+                    const age = selectedBeneficiary.age || 0;
+                    const gender = selectedBeneficiary.gender || 'female';
+                    const isPregnant = selectedBeneficiary.is_pregnant || false;
+                    const ageGroup = getAgeGroup(age, gender, isPregnant);
+                    const classification = getAnemiaClassification(
+                      parsedHb,
+                      ageGroup,
+                      gender,
+                      isPregnant,
+                    );
+                    const color = getAnemiaColor(classification.severity);
+
+                    return (
+                      <View
+                        style={[
+                          styles.classificationBox,
+                          {borderLeftColor: color},
+                        ]}>
+                        <Text style={styles.classificationTitle}>
+                          WHO Classification:
+                        </Text>
+                        <Text style={[styles.classificationCategory, {color}]}>
+                          {classification.category}
+                        </Text>
+                        <Text style={styles.classificationDescription}>
+                          {classification.description}
+                        </Text>
+                      </View>
+                    );
+                  })()}
+                </View>
+              )}
           </View>
 
           <YesNoField
@@ -541,30 +654,95 @@ const Screening = ({route, navigation}) => {
             style={{marginBottom: GAP}}
           />
 
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Anemia Category</Text>
-            <Select
-              value={anemiaCategory}
-              onChange={setAnemiaCategory}
-              options={[
-                {label: 'No anemia', value: 'No anemia'},
-                {label: 'Mild', value: 'Mild'},
-                {label: 'Moderate', value: 'Moderate'},
-                {label: 'Severe', value: 'Severe'},
-              ]}
-              style={{marginBottom: GAP}}
-            />
-          </View>
+          {}
+          {pallor === 'yes' && (
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>
+                Pallor Location
+                {showErrors && errors.pallorLocation ? (
+                  <Text style={styles.req}> *</Text>
+                ) : null}
+              </Text>
+              <View style={styles.pallorLocationContainer}>
+                {['Tongue', 'Conjunctiva', 'Palm'].map((location, index) => {
+                  const isSelected = pallorLocation.includes(location);
+                  return (
+                    <TouchableOpacity
+                      key={index}
+                      style={[
+                        styles.pallorLocationCheckbox,
+                        isSelected && styles.pallorLocationCheckboxSelected,
+                      ]}
+                      onPress={() => {
+                        setPallorLocation(prev =>
+                          prev.includes(location)
+                            ? prev.filter(loc => loc !== location)
+                            : [...prev, location],
+                        );
+                      }}
+                      activeOpacity={0.7}>
+                      <Icon
+                        name={
+                          isSelected
+                            ? 'checkbox-marked'
+                            : 'checkbox-blank-outline'
+                        }
+                        size={24}
+                        color={
+                          isSelected ? colors.primary : colors.textSecondary
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.pallorLocationText,
+                          isSelected && styles.pallorLocationTextSelected,
+                        ]}>
+                        {location}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              {showErrors && errors.pallorLocation && (
+                <Text style={styles.errorText}>{errors.pallorLocation}</Text>
+              )}
+            </View>
+          )}
 
           <View style={[styles.fieldBlock, {marginBottom: GAP}]}>
             <Text style={styles.label}>Symptoms</Text>
-            <Input
-              placeholder="(fatigue, pallor…)"
-              value={symptoms}
-              onChangeText={setSymptoms}
-              multiline
-              style={{height: 84}}
-            />
+            <View style={styles.symptomsContainer}>
+              {anemiaSymptoms.map((symptom, index) => {
+                const isSelected = symptoms.includes(symptom);
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.symptomCheckbox,
+                      isSelected && styles.symptomCheckboxSelected,
+                    ]}
+                    onPress={() => toggleSymptom(symptom)}
+                    activeOpacity={0.7}>
+                    <Icon
+                      name={
+                        isSelected
+                          ? 'checkbox-marked'
+                          : 'checkbox-blank-outline'
+                      }
+                      size={24}
+                      color={isSelected ? colors.primary : colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.symptomText,
+                        isSelected && styles.symptomTextSelected,
+                      ]}>
+                      {symptom}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
 
           <TouchableOpacity
@@ -612,7 +790,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
 
-  // Field Styles
   fieldHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -659,7 +836,6 @@ const styles = StyleSheet.create({
     fontWeight: typography.weights.medium,
   },
 
-  // Search results styles
   searchResultsContainer: {
     backgroundColor: colors.surface,
     borderRadius: 8,
@@ -672,7 +848,7 @@ const styles = StyleSheet.create({
     maxHeight: 200,
   },
   searchResultItem: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -697,7 +873,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
   },
   searchLoadingText: {
@@ -706,17 +882,16 @@ const styles = StyleSheet.create({
   },
   noResultsText: {
     textAlign: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
     color: colors.textSecondary || '#666',
     fontStyle: 'italic',
   },
 
-  // Selected beneficiary styles
   selectedBeneficiaryContainer: {
     backgroundColor: colors.primary + '08',
     borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     marginBottom: spacing.lg,
     borderWidth: 2,
@@ -776,7 +951,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
 
-  // Screening data display styles
   screeningDataContainer: {
     backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
@@ -819,7 +993,6 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
 
-  // Intervention data display styles
   interventionDataContainer: {
     backgroundColor: colors.background,
     borderRadius: borderRadius.sm,
@@ -860,6 +1033,119 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     marginTop: spacing.xs,
     lineHeight: 14,
+  },
+
+  autoClassificationContainer: {
+    marginTop: spacing.sm,
+  },
+  classificationBox: {
+    backgroundColor: colors.background,
+    borderLeftWidth: 4,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginTop: spacing.xs,
+  },
+  classificationTitle: {
+    fontSize: 12,
+    fontWeight: typography.weights.semibold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  classificationCategory: {
+    fontSize: 16,
+    fontWeight: typography.weights.bold,
+    marginBottom: spacing.xs,
+  },
+  classificationDescription: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  classificationDetails: {
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  req: {
+    color: '#D9534F',
+    fontWeight: '700',
+  },
+  pallorLocationContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  pallorLocationCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    marginBottom: spacing.sm,
+    minWidth: 140,
+    flex: 1,
+    maxWidth: '48%',
+  },
+  pallorLocationCheckboxSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  pallorLocationText: {
+    ...typography.body,
+    color: colors.text,
+    marginLeft: spacing.sm,
+    flex: 1,
+  },
+  pallorLocationTextSelected: {
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+  },
+  symptomsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: spacing.md,
+    gap: spacing.sm,
+  },
+  symptomCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.background,
+    marginBottom: spacing.sm,
+    minWidth: 140,
+    flex: 1,
+    maxWidth: '48%',
+  },
+  symptomCheckboxSelected: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '10',
+  },
+  symptomText: {
+    ...typography.body,
+    color: colors.text,
+    marginLeft: spacing.sm,
+    flex: 1,
+  },
+  symptomTextSelected: {
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
+  },
+  inlineLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  primaryText: {
+    ...typography.body,
+    color: colors.primary,
+    fontWeight: typography.weights.semibold,
   },
 });
 

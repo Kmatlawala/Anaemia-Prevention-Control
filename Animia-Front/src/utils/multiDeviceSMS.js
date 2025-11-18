@@ -1,37 +1,18 @@
 import { sendSmartSMS, sendSMSToBeneficiaryContacts } from './sms';
 import { API } from './api';
 
-/**
- * Multi-Device SMS Service
- * Handles SMS sending across multiple devices
- */
-
-/**
- * Get available devices for SMS sending
- * @returns {Promise<Array>} - List of available devices
- */
 export async function getAvailableDevices() {
   try {
     const devices = await API.getDevices();
     return devices || [];
   } catch (error) {
-    console.error('[Multi-Device SMS] Error getting devices:', error);
     return [];
   }
 }
 
-/**
- * Send SMS to specific device
- * @param {string} deviceId - Target device ID
- * @param {string} phoneNumber - Phone number
- * @param {string} message - SMS message
- * @returns {Promise<boolean>} - Success status
- */
 export async function sendSMSToDevice(deviceId, phoneNumber, message) {
   try {
-    console.log(`[Multi-Device SMS] Sending SMS to device ${deviceId}:`, phoneNumber);
     
-    // Send SMS to specific device via API
     const result = await API.sendSMSToDevice(deviceId, {
       phoneNumber: phoneNumber,
       message: message,
@@ -39,28 +20,17 @@ export async function sendSMSToDevice(deviceId, phoneNumber, message) {
     });
     
     if (result.success) {
-      console.log(`[Multi-Device SMS] SMS sent successfully to device ${deviceId}`);
       return true;
     } else {
-      console.log(`[Multi-Device SMS] Failed to send SMS to device ${deviceId}:`, result.error);
       return false;
     }
   } catch (error) {
-    console.error(`[Multi-Device SMS] Error sending SMS to device ${deviceId}:`, error);
     return false;
   }
 }
 
-/**
- * Send SMS to all available devices
- * @param {string} phoneNumber - Phone number
- * @param {string} message - SMS message
- * @returns {Promise<object>} - Results for each device
- */
 export async function sendSMSToAllDevices(phoneNumber, message) {
   try {
-    console.log('[Multi-Device SMS] Sending SMS to all devices:', phoneNumber);
-    
     const devices = await getAvailableDevices();
     const results = [];
     
@@ -73,11 +43,9 @@ export async function sendSMSToAllDevices(phoneNumber, message) {
           success: success,
           error: success ? null : 'SMS sending failed'
         });
-        
-        // Small delay between devices
+
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error) {
-        console.error(`[Multi-Device SMS] Error for device ${device.id}:`, error);
         results.push({
           deviceId: device.id,
           deviceName: device.name,
@@ -90,8 +58,6 @@ export async function sendSMSToAllDevices(phoneNumber, message) {
     const successCount = results.filter(r => r.success).length;
     const totalCount = results.length;
     
-    console.log(`[Multi-Device SMS] Sent to ${successCount}/${totalCount} devices`);
-    
     return {
       success: successCount > 0,
       results: results,
@@ -102,7 +68,6 @@ export async function sendSMSToAllDevices(phoneNumber, message) {
       }
     };
   } catch (error) {
-    console.error('[Multi-Device SMS] Error sending to all devices:', error);
     return {
       success: false,
       results: [],
@@ -112,21 +77,11 @@ export async function sendSMSToAllDevices(phoneNumber, message) {
   }
 }
 
-/**
- * Send SMS to beneficiary contacts across all devices
- * @param {object} beneficiary - Beneficiary object
- * @param {string} message - SMS message
- * @param {boolean} preferDirect - Whether to prefer direct SMS
- * @returns {Promise<object>} - Results for each device and contact
- */
 export async function sendBeneficiarySMSToAllDevices(beneficiary, message, preferDirect = true) {
   try {
-    console.log(`[Multi-Device SMS] Sending beneficiary SMS to all devices for: ${beneficiary.name}`);
-    
     const devices = await getAvailableDevices();
     const allResults = [];
-    
-    // Get all contacts for the beneficiary
+
     const contacts = [];
     if (beneficiary.phone) contacts.push({ type: 'Primary', number: beneficiary.phone });
     if (beneficiary.alt_phone) contacts.push({ type: 'Alternative', number: beneficiary.alt_phone });
@@ -148,12 +103,10 @@ export async function sendBeneficiarySMSToAllDevices(beneficiary, message, prefe
             deviceName: device.name
           });
           
-          console.log(`[Multi-Device SMS] ${contact.type} (${contact.number}) on ${device.name}: ${success ? 'Success' : 'Failed'}`);
-          
-          // Small delay between contacts
+          on ${device.name}: ${success ? 'Success' : 'Failed'}`);
+
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch (error) {
-          console.error(`[Multi-Device SMS] Error for ${contact.type} on ${device.name}:`, error);
           deviceResults.push({
             contact: contact,
             success: false,
@@ -188,7 +141,6 @@ export async function sendBeneficiarySMSToAllDevices(beneficiary, message, prefe
       }
     };
   } catch (error) {
-    console.error('[Multi-Device SMS] Error sending beneficiary SMS to all devices:', error);
     return {
       beneficiary: beneficiary,
       message: message,
@@ -199,17 +151,8 @@ export async function sendBeneficiarySMSToAllDevices(beneficiary, message, prefe
   }
 }
 
-/**
- * Send bulk SMS to all devices
- * @param {Array} beneficiaries - Array of beneficiary objects
- * @param {string} message - SMS message
- * @param {boolean} preferDirect - Whether to prefer direct SMS
- * @returns {Promise<object>} - Results for all devices and beneficiaries
- */
 export async function sendBulkSMSToAllDevices(beneficiaries, message, preferDirect = true) {
   try {
-    console.log(`[Multi-Device SMS] Sending bulk SMS to all devices for ${beneficiaries.length} beneficiaries`);
-    
     const devices = await getAvailableDevices();
     const allResults = [];
     
@@ -220,11 +163,9 @@ export async function sendBulkSMSToAllDevices(beneficiaries, message, preferDire
         try {
           const result = await sendBeneficiarySMSToAllDevices(beneficiary, message, preferDirect);
           deviceResults.push(result);
-          
-          // Small delay between beneficiaries
+
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (error) {
-          console.error(`[Multi-Device SMS] Error for beneficiary ${beneficiary.name} on device ${device.id}:`, error);
           deviceResults.push({
             beneficiary: beneficiary,
             success: false,
@@ -258,7 +199,6 @@ export async function sendBulkSMSToAllDevices(beneficiaries, message, preferDire
       }
     };
   } catch (error) {
-    console.error('[Multi-Device SMS] Error sending bulk SMS to all devices:', error);
     return {
       beneficiaries: beneficiaries,
       message: message,
@@ -269,10 +209,6 @@ export async function sendBulkSMSToAllDevices(beneficiaries, message, preferDire
   }
 }
 
-/**
- * Get SMS status for all devices
- * @returns {Promise<object>} - Status of all devices
- */
 export async function getDevicesSMSStatus() {
   try {
     const devices = await getAvailableDevices();
@@ -289,7 +225,6 @@ export async function getDevicesSMSStatus() {
           smsCount: status.smsCount || 0
         });
       } catch (error) {
-        console.error(`[Multi-Device SMS] Error getting status for device ${device.id}:`, error);
         statusResults.push({
           device: device,
           status: null,
@@ -311,7 +246,6 @@ export async function getDevicesSMSStatus() {
       }
     };
   } catch (error) {
-    console.error('[Multi-Device SMS] Error getting devices SMS status:', error);
     return {
       devices: [],
       summary: { total: 0, online: 0, offline: 0, totalSMS: 0 },

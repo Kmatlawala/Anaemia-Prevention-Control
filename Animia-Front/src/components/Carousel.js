@@ -37,7 +37,6 @@ const CustomCarousel = ({
   const [isScrolling, setIsScrolling] = useState(false);
   const autoplayTimer = useRef(null);
 
-  // Safety check for data and renderItem
   if (!data || !Array.isArray(data) || data.length === 0) {
     return (
       <View style={[styles.container, style]}>
@@ -92,7 +91,6 @@ const CustomCarousel = ({
     [itemWidth, data.length],
   );
 
-  // Autoplay functionality
   useEffect(() => {
     if (autoplay && data.length > 1) {
       autoplayTimer.current = setInterval(() => {
@@ -253,7 +251,7 @@ const styles = StyleSheet.create({
     marginTop: -20,
     backgroundColor: colors.surface,
     borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.sm,
     ...shadows.sm,
     zIndex: 1,
@@ -271,7 +269,7 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.lg,
   },
 });

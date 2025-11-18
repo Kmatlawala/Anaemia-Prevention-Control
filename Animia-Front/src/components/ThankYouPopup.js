@@ -26,7 +26,7 @@ const ThankYouPopup = ({visible, onClose, onComplete}) => {
 
   useEffect(() => {
     if (visible) {
-      // Start animations
+      
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -41,7 +41,6 @@ const ThankYouPopup = ({visible, onClose, onComplete}) => {
         }),
       ]).start();
 
-      // Animate checkmark after a short delay
       setTimeout(() => {
         Animated.timing(checkmarkAnim, {
           toValue: 1,
@@ -50,7 +49,7 @@ const ThankYouPopup = ({visible, onClose, onComplete}) => {
         }).start();
       }, 300);
     } else {
-      // Reset animations
+      
       scaleAnim.setValue(0);
       fadeAnim.setValue(0);
       checkmarkAnim.setValue(0);
@@ -89,7 +88,7 @@ const ThankYouPopup = ({visible, onClose, onComplete}) => {
               transform: [{scale: scaleAnim}],
             },
           ]}>
-          {/* Success Icon */}
+          {}
           <View style={styles.iconContainer}>
             <Animated.View
               style={[
@@ -103,7 +102,7 @@ const ThankYouPopup = ({visible, onClose, onComplete}) => {
             </Animated.View>
           </View>
 
-          {/* Content */}
+          {}
           <View style={styles.content}>
             <Text style={styles.title}>Thank You!</Text>
             <Text style={styles.subtitle}>
@@ -116,7 +115,7 @@ const ThankYouPopup = ({visible, onClose, onComplete}) => {
             </Text>
           </View>
 
-          {/* Action Buttons */}
+          {}
           <View style={styles.buttonContainer}>
             <TouchableOpacity
               style={styles.primaryButton}

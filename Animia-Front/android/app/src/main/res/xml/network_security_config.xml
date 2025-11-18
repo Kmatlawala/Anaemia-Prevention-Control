@@ -1,9 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!-- Production configuration for EC2 server -->
+    <!-- Allow both HTTPS (with self-signed cert support) and HTTP -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">3.80.46.128</domain>
+        <trust-anchors>
+            <!-- Trust system CAs -->
+            <certificates src="system"/>
+            <!-- Trust user-added CAs (CRITICAL for self-signed certificates on IP addresses) -->
+            <certificates src="user"/>
+        </trust-anchors>
+    </domain-config>
+    
+    <!-- Development configuration - Allow HTTP for local development -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
         <domain includeSubdomains="true">127.0.0.1</domain>
         <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">3.80.46.128</domain>
+        <domain includeSubdomains="true">192.168.31.143</domain>
     </domain-config>
+    
+    <!-- Base configuration - Trust user certificates globally -->
+    <!-- This allows self-signed certificates to work with React Native -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <!-- Trust system CAs -->
+            <certificates src="system"/>
+            <!-- Trust user-added CAs (allows self-signed certificates) -->
+            <certificates src="user"/>
+        </trust-anchors>
+    </base-config>
 </network-security-config>

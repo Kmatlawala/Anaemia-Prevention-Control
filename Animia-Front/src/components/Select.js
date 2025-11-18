@@ -1,4 +1,4 @@
-// src/components/Select.js
+
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
@@ -43,5 +43,4 @@ const styles = StyleSheet.create({
 });
 
 export default React.memo(Select);
-
 

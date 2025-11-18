@@ -33,7 +33,6 @@ import {
 } from '../theme/theme';
 import DocumentScanner from 'react-native-document-scanner-plugin';
 
-// project-specific
 import {API} from '../utils/api';
 import {getRole} from '../utils/role';
 import {sendPushToSelf} from '../utils/notifications';
@@ -57,15 +56,14 @@ const Registration = ({navigation, route}) => {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [altPhone, setAltPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [regDate, setRegDate] = useState('');
   const [doctorName, setDoctorName] = useState('');
   const [doctorPhone, setDoctorPhone] = useState('');
 
-  // Date picker states
   const [showDobPicker, setShowDobPicker] = useState(false);
   const [showRegDatePicker, setShowRegDatePicker] = useState(false);
 
-  // DateTimePicker for calendar functionality
   const DateTimePicker = useMemo(() => {
     try {
       const mod = require('@react-native-community/datetimepicker');
@@ -84,12 +82,10 @@ const Registration = ({navigation, route}) => {
   const isScannerOpenRef = useRef(false);
   const fade = useRef(new Animated.Value(0)).current;
 
-  // VALIDATION STATE (only shown after Save is tapped)
   const [showErrors, setShowErrors] = useState(false);
   const [errors, setErrors] = useState({});
   const scrollRef = useRef(null);
 
-  // for focusing / scrolling to the first error
   const refs = {
     aadhaar: useRef(null),
     name: useRef(null),
@@ -97,6 +93,7 @@ const Registration = ({navigation, route}) => {
     category: useRef(null),
     phone: useRef(null),
     altPhone: useRef(null),
+    email: useRef(null),
     address: useRef(null),
     doctorName: useRef(null),
     doctorPhone: useRef(null),
@@ -134,7 +131,6 @@ const Registration = ({navigation, route}) => {
     }
   }, [route, fade, navigation]);
 
-  // ---------- Validators (plain functions; we won't run them until Save) ----------
   const isDob = val =>
     /^(19|20)\d\d-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(
       String(val || ''),
@@ -187,11 +183,10 @@ const Registration = ({navigation, route}) => {
     ];
     const key = order.find(k => errs[k]);
     if (!key) return;
-    // best-effort scroll to top; focusing custom inputs/selects depends on your components
+
     scrollRef.current?.scrollTo({y: 0, animated: true});
   };
 
-  // ---------- Permissions & Scanner ----------
   const ensureCameraPermission = useCallback(async () => {
     try {
       if (Platform.OS === 'android') {
@@ -249,19 +244,18 @@ const Registration = ({navigation, route}) => {
 
         let normalized = uri;
         if (
-          !normalized.startsWith('file://') &&
-          !normalized.startsWith('content://') &&
-          !normalized.startsWith('http')
+          !normalized.startsWith('file:') &&
+          !normalized.startsWith('content:') &&
+          !normalized.startsWith('http:')
         ) {
           normalized = normalized.startsWith('/')
-            ? `file://${normalized}`
-            : `file://${normalized}`;
+            ? `file:${normalized}`
+            : `file:${normalized}`;
         }
 
         if (side === 'front') setFrontUri(normalized);
         else setBackUri(normalized);
 
-        // Best-effort OCR prefill
         try {
           const ocr = await TextRecognition.recognize(normalized);
           const ocrText = (ocr && ocr.text) || '';
@@ -303,7 +297,6 @@ const Registration = ({navigation, route}) => {
     [scanDocument],
   );
 
-  // ---------- Save ----------
   const onSave = async () => {
     const v = runValidation();
 
@@ -316,15 +309,12 @@ const Registration = ({navigation, route}) => {
 
     setProcessing(true);
     try {
-      // Aadhaar mandatory + unique
       const normalizedAad = (aadhaar || '').replace(/\s+/g, '');
       const aadHash = hashAadhaar(normalizedAad);
       const idMasked = maskAadhaar(normalizedAad);
 
-      // Dedupe by Aadhaar is now a backend concern; ensure a unique constraint there
-
       const uniqueId = `${aadHash}-${Date.now()}`;
-      // Generate unique short_id with timestamp and random component
+
       const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
       const timestamp = Date.now().toString(36).slice(-4);
       const randomSeed = Math.floor(Math.random() * 1000);
@@ -348,12 +338,12 @@ const Registration = ({navigation, route}) => {
         Math.floor(dayjs().diff(dayjs(dob), 'year')),
       );
 
-      // Map to backend payload including all details
       const payload = {
         name,
         age: derivedAge,
         gender: null,
         phone,
+        email,
         address,
         id_number: idMasked,
         aadhaar_hash: aadHash,
@@ -377,50 +367,32 @@ const Registration = ({navigation, route}) => {
           .toISOString(),
         hb: null,
         calcium_qty: null,
-        short_id: shortId, // <-- Added to store the 4-character unique ID
+        short_id: shortId,
       };
 
-      // Debug cache status before save
       await debugCacheStatus();
       const online = await isOnline();
-      console.log('[Registration] Network status:', {online});
       let saveResult;
       if (editingId) {
-        // Update beneficiary using Redux (with offline support)
         saveResult = await dispatch(
           updateBeneficiary({id: editingId, updates: payload}),
         );
       } else {
-        // Create beneficiary using Redux (with offline support)
         saveResult = await dispatch(addBeneficiary(payload));
       }
-
-      // Check if save was successful
 
       if (saveResult.type.endsWith('/rejected')) {
         throw new Error(saveResult.payload || 'Save operation failed');
       }
 
-      // Debug cache status after save
       await debugCacheStatus();
 
-      // Send SMS - SMS doesn't require internet connectivity
-      console.log(
-        '[Registration] Attempting to send SMS regardless of network status...',
-      );
-
-      // Always try to send SMS since it doesn't require internet
       {
         try {
-          console.log(
-            '[Registration] Device is online, starting SMS sending process...',
-          );
-          // Add a small delay to ensure API call is complete
           await new Promise(resolve => setTimeout(resolve, 1000));
 
           const {sendSMSToBeneficiary} = await import('../utils/fixedSMS');
 
-          // Format doctor phone number properly
           const formattedDoctorPhone = doctorPhone
             ? doctorPhone.replace(/\D/g, '')
             : '';
@@ -431,7 +403,6 @@ const Registration = ({navigation, route}) => {
 
           const message = `Hello ${name}, your registration with Anaemia is successful. Your ID: ${shortId}. Doctor: ${doctorInfo}. Thank you!`;
 
-          // Create beneficiary object for SMS sending (same as update)
           const beneficiaryData = {
             name: name,
             phone: phone,
@@ -440,38 +411,13 @@ const Registration = ({navigation, route}) => {
             short_id: shortId,
           };
 
-          console.log('[Registration] SMS data:', {
-            beneficiaryData,
-            message,
-            online,
-            phoneValidation: {
-              phone: phone ? phone.replace(/\D/g, '') : null,
-              altPhone: altPhone ? altPhone.replace(/\D/g, '') : null,
-              doctorPhone: doctorPhone ? doctorPhone.replace(/\D/g, '') : null,
-            },
-          });
-
-          // Send SMS to all contacts (primary, alternative, doctor) - same as update
-          console.log('[Registration] About to call sendSMSToBeneficiary...');
-
-          // Try a simple SMS first to test if SMS is working
           if (beneficiaryData.phone) {
             try {
               const {sendSMS} = await import('../utils/fixedSMS');
-              console.log(
-                '[Registration] Testing simple SMS to primary phone...',
-              );
               const testResult = await sendSMS(beneficiaryData.phone, message);
-              console.log('[Registration] Simple SMS test result:', testResult);
-            } catch (testError) {
-              console.error(
-                '[Registration] Simple SMS test failed:',
-                testError,
-              );
-            }
+            } catch (testError) {}
           }
 
-          // Add timeout to prevent SMS from getting stuck
           const smsPromise = sendSMSToBeneficiary(beneficiaryData, message);
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(
@@ -480,11 +426,8 @@ const Registration = ({navigation, route}) => {
             ),
           );
 
-          console.log('[Registration] Waiting for SMS result...');
           const smsResult = await Promise.race([smsPromise, timeoutPromise]);
-          console.log('[Registration] SMS result received:', smsResult);
 
-          // If SMS failed, try sending to primary phone only as fallback
           if (!smsResult.success && beneficiaryData.phone) {
             try {
               const {sendSMS} = await import('../utils/fixedSMS');
@@ -497,23 +440,10 @@ const Registration = ({navigation, route}) => {
                   'SMS Sent (Fallback)',
                   'SMS sent to primary phone number. Alternative contacts may not have received the message.',
                 );
-                // Don't return here - continue with the rest of the function
               }
-            } catch (fallbackError) {
-              console.error(
-                '[Registration] Fallback SMS failed:',
-                fallbackError,
-              );
-            }
+            } catch (fallbackError) {}
           }
-
-          // SMS function already shows its own alerts, so we don't need to show additional ones
-          console.log(
-            '[Registration] SMS process completed with result:',
-            smsResult,
-          );
         } catch (smsError) {
-          console.error('[Registration] Failed to send SMS:', smsError);
           if (smsError.message.includes('timeout')) {
             Alert.alert(
               'SMS Timeout',
@@ -528,7 +458,6 @@ const Registration = ({navigation, route}) => {
         }
       }
 
-      // Send FCM push locally (device owner). Replace with targeted tokens as needed.
       const followUpDate = dayjs(
         payload.follow_up_due || payload.followUpDue,
       ).format('YYYY-MM-DD');
@@ -544,7 +473,6 @@ const Registration = ({navigation, route}) => {
           },
         );
       } catch (notificationError) {
-        // Fallback to local notification
         try {
           const {showLocalNotification} = await import(
             '../utils/notifications'
@@ -555,7 +483,7 @@ const Registration = ({navigation, route}) => {
           );
         } catch (localNotificationError) {}
       }
-      // Show appropriate success message based on network status
+
       const successMessage = online
         ? editingId
           ? `Beneficiary updated successfully. ID: ${shortId}`
@@ -566,16 +494,22 @@ const Registration = ({navigation, route}) => {
 
       Alert.alert('Saved', successMessage);
 
-      // Navigate to Screening with beneficiary data
+      const beneficiaryData = {
+        id: saveResult.payload?.id || editingId,
+        name,
+        age: derivedAge,
+        category,
+        gender: null,
+        is_pregnant: category === 'Pregnant',
+        is_lactating: false,
+        short_id: shortId,
+        phone,
+        doctor_name: doctorName,
+        doctor_phone: doctorPhone,
+      };
+
       navigation.navigate('Screening', {
-        beneficiaryData: {
-          id: saveResult.payload?.id || editingId,
-          name,
-          short_id: shortId,
-          phone,
-          doctor_name: doctorName,
-          doctor_phone: doctorPhone,
-        },
+        beneficiaryData,
         fromFlow: true,
       });
     } catch (e) {
@@ -605,7 +539,7 @@ const Registration = ({navigation, route}) => {
       keyboardShouldPersistTaps="handled">
       <NetworkStatus />
       <Header
-        onMenuPress={() => navigation.goBack()}
+        onBackPress={() => navigation.goBack()}
         title="New Beneficiary Registration"
         variant="back"
         rightIconName="account-plus"
@@ -745,7 +679,6 @@ const Registration = ({navigation, route}) => {
               {label: 'Pregnant', value: 'Pregnant'},
               {label: 'Child (Below 5)', value: 'Under5'},
               {label: 'Adolescent (10–19)', value: 'Adolescent'},
-              {label: 'Women of Reproductive Age', value: 'WoRA'},
             ]}
             placeholder="Select category"
             style={[errStyle('category')]}
@@ -771,6 +704,17 @@ const Registration = ({navigation, route}) => {
             style={[styles.input, errStyle('altPhone')]}
           />
           {errText('altPhone')}
+
+          <Input
+            ref={refs.email}
+            placeholder="Email Address"
+            keyboardType="email-address"
+            value={email}
+            onChangeText={setEmail}
+            style={[styles.input, errStyle('email')]}
+            autoCapitalize="none"
+          />
+          {errText('email')}
 
           <Input
             ref={refs.doctorName}
@@ -885,7 +829,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 2,
     borderColor: colors.primary,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.surface,
@@ -911,7 +855,7 @@ const styles = StyleSheet.create({
     flex: 1,
     borderWidth: 2,
     borderColor: colors.border,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.md,
     borderRadius: borderRadius.lg,
     backgroundColor: colors.surface,
@@ -931,7 +875,7 @@ const styles = StyleSheet.create({
   previewRow: {
     marginTop: spacing.md,
     backgroundColor: colors.background,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.md,
     borderWidth: 1,
@@ -973,7 +917,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: colors.primary,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
     borderRadius: borderRadius.lg,
     alignItems: 'center',

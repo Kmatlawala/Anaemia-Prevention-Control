@@ -3,13 +3,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STORAGE_KEY = '@animia_auth_state';
 
-// Helper functions for AsyncStorage
 const saveAuthState = async authState => {
   try {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(authState));
   } catch (error) {
-    console.error('Error saving auth state:', error);
-  }
+    }
 };
 
 const loadAuthState = async () => {
@@ -17,7 +15,6 @@ const loadAuthState = async () => {
     const authState = await AsyncStorage.getItem(STORAGE_KEY);
     return authState ? JSON.parse(authState) : null;
   } catch (error) {
-    console.error('Error loading auth state:', error);
     return null;
   }
 };
@@ -26,8 +23,7 @@ const clearAuthState = async () => {
   try {
     await AsyncStorage.removeItem(STORAGE_KEY);
   } catch (error) {
-    console.error('Error clearing auth state:', error);
-  }
+    }
 };
 
 const initialState = {
@@ -37,21 +33,22 @@ const initialState = {
   token: null,
   error: null,
   isLoading: true,
+  
+  selectedBeneficiary: null,
+  loginMethod: null, 
+  loginValue: null, 
 };
 
-// Async thunk to initialize auth state
 export const initializeAuth = createAsyncThunk('auth/initialize', async () => {
   const authState = await loadAuthState();
   return authState;
 });
 
-// Async thunk for login
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, {rejectWithValue}) => {
     try {
-      // Here you would typically make an API call
-      // For now, we'll simulate a login
+
       const {username, password} = credentials;
 
       if (username && password) {
@@ -92,14 +89,20 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.role = action.payload.role;
       state.token = action.payload.token;
+      state.selectedBeneficiary = action.payload.selectedBeneficiary || null;
+      state.loginMethod = action.payload.loginMethod || null;
+      state.loginValue = action.payload.loginValue || null;
       state.error = null;
       state.isLoading = false;
-      // Save to AsyncStorage
+      
       saveAuthState({
         isAuthenticated: true,
         user: action.payload.user,
         role: action.payload.role,
         token: action.payload.token,
+        selectedBeneficiary: action.payload.selectedBeneficiary || null,
+        loginMethod: action.payload.loginMethod || null,
+        loginValue: action.payload.loginValue || null,
       });
     },
     loginFailure: (state, action) => {
@@ -115,6 +118,9 @@ const authSlice = createSlice({
       state.user = null;
       state.role = null;
       state.token = null;
+      state.selectedBeneficiary = null;
+      state.loginMethod = null;
+      state.loginValue = null;
       state.error = null;
       state.isLoading = false;
       clearAuthState();
@@ -128,7 +134,7 @@ const authSlice = createSlice({
   },
   extraReducers: builder => {
     builder
-      // Initialize auth
+      
       .addCase(initializeAuth.pending, state => {
         state.isLoading = true;
       })
@@ -138,19 +144,26 @@ const authSlice = createSlice({
           state.user = action.payload.user;
           state.role = action.payload.role;
           state.token = action.payload.token;
+          state.selectedBeneficiary =
+            action.payload.selectedBeneficiary || null;
+          state.loginMethod = action.payload.loginMethod || null;
+          state.loginValue = action.payload.loginValue || null;
         } else {
-          // No stored auth state - user is not authenticated
+          
           state.isAuthenticated = false;
           state.user = null;
           state.role = null;
           state.token = null;
+          state.selectedBeneficiary = null;
+          state.loginMethod = null;
+          state.loginValue = null;
         }
         state.isLoading = false;
       })
       .addCase(initializeAuth.rejected, state => {
         state.isLoading = false;
       })
-      // Login user
+      
       .addCase(loginUser.pending, state => {
         state.isLoading = true;
         state.error = null;
@@ -177,7 +190,6 @@ const authSlice = createSlice({
 export const {loginSuccess, loginFailure, logout, clearError, setLoading} =
   authSlice.actions;
 
-// Selectors
 export const selectIsAuthenticated = state => state.auth.isAuthenticated;
 export const selectUser = state => state.auth.user;
 export const selectRole = state => state.auth.role;

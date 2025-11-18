@@ -1,67 +1,98 @@
-import {Alert, Platform} from 'react-native';
+import {Platform, PermissionsAndroid} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import messaging from '@react-native-firebase/messaging';
+import {requestSMSPermission, checkSMSPermission} from './fixedSMS';
 
 const PERMISSION_STORAGE_KEY = '@animia_notification_permission_requested';
+const SMS_PERMISSION_STORAGE_KEY = '@animia_sms_permission_requested';
 const FIRST_APP_OPEN_KEY = '@animia_first_app_open';
 
-/**
- * Check if this is the first time the app is being opened
- */
 export async function isFirstAppOpen() {
   try {
     const firstOpen = await AsyncStorage.getItem(FIRST_APP_OPEN_KEY);
     return firstOpen === null;
   } catch (error) {
-    console.error('[PermissionManager] Error checking first app open:', error);
     return false;
   }
 }
 
-/**
- * Mark that the app has been opened at least once
- */
 export async function markAppOpened() {
   try {
     await AsyncStorage.setItem(FIRST_APP_OPEN_KEY, 'true');
   } catch (error) {
-    console.error('[PermissionManager] Error marking app opened:', error);
-  }
+    }
 }
 
-/**
- * Check if notification permission has been requested before
- */
 export async function hasRequestedNotificationPermission() {
   try {
     const requested = await AsyncStorage.getItem(PERMISSION_STORAGE_KEY);
     return requested === 'true';
   } catch (error) {
-    console.error(
-      '[PermissionManager] Error checking permission request:',
-      error,
-    );
     return false;
   }
 }
 
-/**
- * Mark that notification permission has been requested
- */
 export async function markNotificationPermissionRequested() {
   try {
     await AsyncStorage.setItem(PERMISSION_STORAGE_KEY, 'true');
   } catch (error) {
-    console.error(
-      '[PermissionManager] Error marking permission requested:',
-      error,
-    );
+    }
+}
+
+export async function checkNotificationPermissionStatus() {
+  try {
+    
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      try {
+        const hasAndroidPermission = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        );
+
+        if (!hasAndroidPermission) {
+          return {
+            authorized: false,
+            provisional: false,
+            denied: true,
+            notDetermined: false,
+            status: messaging.AuthorizationStatus.DENIED,
+          };
+        }
+      } catch (androidError) {
+        
+      }
+    }
+
+    let authStatus;
+    if (messaging().hasPermission) {
+      authStatus = await messaging().hasPermission();
+    } else {
+      
+      try {
+        await messaging().getToken();
+        authStatus = messaging.AuthorizationStatus.AUTHORIZED;
+      } catch (e) {
+        authStatus = messaging.AuthorizationStatus.DENIED;
+      }
+    }
+    return {
+      authorized: authStatus === messaging.AuthorizationStatus.AUTHORIZED,
+      provisional: authStatus === messaging.AuthorizationStatus.PROVISIONAL,
+      denied: authStatus === messaging.AuthorizationStatus.DENIED,
+      notDetermined:
+        authStatus === messaging.AuthorizationStatus.NOT_DETERMINED,
+      status: authStatus,
+    };
+  } catch (error) {
+    return {
+      authorized: false,
+      provisional: false,
+      denied: true,
+      notDetermined: false,
+      status: messaging.AuthorizationStatus.DENIED,
+    };
   }
 }
 
-/**
- * Check current notification permission status
- */
 export async function getNotificationPermissionStatus() {
   try {
     const authStatus = await messaging().requestPermission();
@@ -74,10 +105,6 @@ export async function getNotificationPermissionStatus() {
       status: authStatus,
     };
   } catch (error) {
-    console.error(
-      '[PermissionManager] Error getting permission status:',
-      error,
-    );
     return {
       authorized: false,
       provisional: false,
@@ -88,12 +115,34 @@ export async function getNotificationPermissionStatus() {
   }
 }
 
-/**
- * Request notification permission with user-friendly messaging
- */
 export async function requestNotificationPermission(showAlert = true) {
   try {
-    console.log('[PermissionManager] Requesting notification permission...');
+    
+    if (Platform.OS === 'android' && Platform.Version >= 33) {
+      try {
+        const hasPermission = await PermissionsAndroid.check(
+          PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        );
+
+        if (!hasPermission) {
+          const androidResult = await PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          );
+
+          if (androidResult !== PermissionsAndroid.RESULTS.GRANTED) {
+            await markNotificationPermissionRequested();
+            return {
+              granted: false,
+              authorized: false,
+              provisional: false,
+              status: messaging.AuthorizationStatus.DENIED,
+            };
+          }
+        }
+      } catch (androidError) {
+        
+      }
+    }
 
     const authStatus = await messaging().requestPermission({
       alert: true,
@@ -111,24 +160,7 @@ export async function requestNotificationPermission(showAlert = true) {
       authStatus === messaging.AuthorizationStatus.PROVISIONAL;
     const isGranted = isAuthorized || isProvisional;
 
-    // Mark that we've requested permission
     await markNotificationPermissionRequested();
-
-    if (showAlert) {
-      if (isGranted) {
-        Alert.alert(
-          'Notifications Enabled',
-          'You will now receive important updates about beneficiary registrations and follow-ups.',
-          [{text: 'OK'}],
-        );
-      } else {
-        Alert.alert(
-          'Notifications Disabled',
-          'You can enable notifications later in your device settings to receive important updates.',
-          [{text: 'OK'}],
-        );
-      }
-    }
 
     return {
       granted: isGranted,
@@ -137,14 +169,7 @@ export async function requestNotificationPermission(showAlert = true) {
       status: authStatus,
     };
   } catch (error) {
-    console.error('[PermissionManager] Error requesting permission:', error);
-    if (showAlert) {
-      Alert.alert(
-        'Permission Error',
-        'Failed to request notification permission. You can enable it later in device settings.',
-        [{text: 'OK'}],
-      );
-    }
+    await markNotificationPermissionRequested();
     return {
       granted: false,
       authorized: false,
@@ -154,99 +179,170 @@ export async function requestNotificationPermission(showAlert = true) {
   }
 }
 
-/**
- * Handle notification permission on first app open
- */
 export async function handleFirstAppOpenPermissions() {
   try {
     const isFirstOpen = await isFirstAppOpen();
     if (!isFirstOpen) {
-      return; // Not first open, skip
+      return; 
     }
 
-    console.log(
-      '[PermissionManager] First app open detected, requesting permissions...',
-    );
-
-    // Mark app as opened
     await markAppOpened();
 
-    // Request notification permission
     await requestNotificationPermission(true);
   } catch (error) {
-    console.error(
-      '[PermissionManager] Error handling first app open permissions:',
-      error,
-    );
-  }
+    }
 }
 
-/**
- * Handle notification permission when first notification is triggered
- */
 export async function handleNotificationPermissionOnFirstNotification() {
   try {
     const hasRequested = await hasRequestedNotificationPermission();
     if (hasRequested) {
-      return; // Already requested, skip
+      return; 
     }
 
     const permissionStatus = await getNotificationPermissionStatus();
     if (permissionStatus.authorized || permissionStatus.provisional) {
-      // Permission already granted, mark as requested
+      
       await markNotificationPermissionRequested();
       return;
     }
 
-    console.log(
-      '[PermissionManager] First notification triggered, requesting permission...',
-    );
-
-    // Request permission with explanation
-    Alert.alert(
-      'Enable Notifications',
-      'To receive important updates about beneficiary registrations and follow-ups, please enable notifications.',
-      [
-        {
-          text: 'Not Now',
-          style: 'cancel',
-          onPress: () => markNotificationPermissionRequested(),
-        },
-        {
-          text: 'Enable',
-          onPress: async () => {
-            await requestNotificationPermission(false);
-          },
-        },
-      ],
-    );
+    await requestNotificationPermission(false);
+    await markNotificationPermissionRequested();
   } catch (error) {
-    console.error(
-      '[PermissionManager] Error handling notification permission:',
-      error,
-    );
-  }
+    }
 }
 
-/**
- * Check if notifications are enabled and request permission if needed
- */
 export async function ensureNotificationPermission() {
   try {
     const permissionStatus = await getNotificationPermissionStatus();
 
     if (permissionStatus.authorized || permissionStatus.provisional) {
-      return true; // Permission already granted
+      return true; 
     }
 
-    // Permission not granted, request it
     const result = await requestNotificationPermission(true);
     return result.granted;
   } catch (error) {
-    console.error(
-      '[PermissionManager] Error ensuring notification permission:',
-      error,
-    );
     return false;
+  }
+}
+
+export async function hasRequestedSMSPermission() {
+  try {
+    const requested = await AsyncStorage.getItem(SMS_PERMISSION_STORAGE_KEY);
+    return requested === 'true';
+  } catch (error) {
+    return false;
+  }
+}
+
+export async function markSMSPermissionRequested() {
+  try {
+    await AsyncStorage.setItem(SMS_PERMISSION_STORAGE_KEY, 'true');
+  } catch (error) {
+    }
+}
+
+export async function getSMSPermissionStatus() {
+  try {
+    if (Platform.OS !== 'android') {
+      return {granted: true, available: false};
+    }
+
+    const granted = await checkSMSPermission();
+    return {
+      granted,
+      available: true,
+    };
+  } catch (error) {
+    return {
+      granted: false,
+      available: Platform.OS === 'android',
+    };
+  }
+}
+
+export async function requestSMSPermissionWithAlert(showAlert = true) {
+  try {
+    if (Platform.OS !== 'android') {
+      return {granted: true, available: false};
+    }
+
+    const granted = await requestSMSPermission();
+
+    await markSMSPermissionRequested();
+
+    return {
+      granted,
+      available: true,
+    };
+  } catch (error) {
+    return {
+      granted: false,
+      available: Platform.OS === 'android',
+    };
+  }
+}
+
+export async function ensureAllPermissions() {
+  try {
+    const notificationGranted = await ensureNotificationPermission();
+    const smsResult = await getSMSPermissionStatus();
+
+    if (Platform.OS === 'android' && !smsResult.granted) {
+      const smsGranted = await requestSMSPermissionWithAlert(false);
+      return {
+        notification: notificationGranted,
+        sms: smsGranted.granted,
+      };
+    }
+
+    return {
+      notification: notificationGranted,
+      sms: smsResult.granted,
+    };
+  } catch (error) {
+    return {
+      notification: false,
+      sms: false,
+    };
+  }
+}
+
+export async function requestPermissionsOnAppLaunch() {
+  try {
+    
+    const notificationStatus = await checkNotificationPermissionStatus();
+    let notificationGranted =
+      notificationStatus.authorized || notificationStatus.provisional;
+
+    if (!notificationGranted) {
+      const notificationResult = await requestNotificationPermission(true);
+      notificationGranted = notificationResult.granted;
+    } else {
+      }
+
+    let smsGranted = true; 
+    if (Platform.OS === 'android') {
+      const smsStatus = await getSMSPermissionStatus();
+      smsGranted = smsStatus.granted;
+
+      if (!smsGranted) {
+        const smsResult = await requestSMSPermissionWithAlert(true);
+        smsGranted = smsResult.granted;
+      } else {
+        }
+    }
+
+    return {
+      notification: notificationGranted,
+      sms: smsGranted,
+    };
+  } catch (error) {
+    return {
+      notification: false,
+      sms: false,
+    };
   }
 }

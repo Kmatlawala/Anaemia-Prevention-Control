@@ -34,7 +34,7 @@ const PushNotification = ({navigation}) => {
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={load} />
         }
-        contentContainerStyle={{paddingHorizontal: spacing.horizontal, // 16px left/right
+        contentContainerStyle={{paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md}}
         renderItem={({item}) => (
           <View style={styles.card}>
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderRadius: 12,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     marginBottom: spacing.sm,
     borderWidth: 1,

@@ -1,110 +1,222 @@
-// src/config/api.js
 import Config from 'react-native-config';
 import store from '../store/store';
 
-// Server Configuration - Updated with your actual EC2 server IPs
-const SERVER_CONFIGS = {
-  // EC2 Server IPs - Your actual EC2 IPs
-  EC2_PUBLIC_IP: '3.80.46.128', // Your EC2 Public IP
-  EC2_PRIVATE_IP: '172.31.19.54', // Your EC2 Private IP (from hostname)
+const SERVER_IP = '3.80.46.128';
 
-  // Local Development IPs
-  LOCAL_IP: '192.168.31.143',
-  LOCALHOST: 'localhost',
-};
+const HTTPS_BASE = `https://${SERVER_IP}`;
 
-// Try multiple endpoints in order of preference
-const FALLBACK_IPS = [
-  `http://${SERVER_CONFIGS.LOCALHOST}:3000`, // Localhost (for local development)
-  'http://127.0.0.1:3000', // Localhost alternative
-  `http://${SERVER_CONFIGS.LOCAL_IP}:3000`, // Local network IP
-  `http://${SERVER_CONFIGS.EC2_PUBLIC_IP}:3000`, // EC2 Public IP (external access)
-  `http://${SERVER_CONFIGS.EC2_PRIVATE_IP}:3000`, // EC2 Private IP (internal access)
-];
+const HTTP_BASE = `http://${SERVER_IP}:3000`;
 
-// Use EC2 server for production
-const FALLBACK = `http://${SERVER_CONFIGS.EC2_PUBLIC_IP}:3000`; // Use EC2 server for production
-export const API_BASE = Config && Config.API_BASE ? Config.API_BASE : FALLBACK;
+export const API_BASE =
+  (Config && Config.API_BASE) || process.env.API_BASE || HTTPS_BASE;
 
-// Debug logging
-console.log('[API] Config:', Config);
-console.log('[API] API_BASE set to:', API_BASE);
-console.log('[API] FALLBACK:', FALLBACK);
+export async function requestWithFallback(path, opts = {}, retries = 0) {
+  const endpoints = [
+    `${HTTPS_BASE}${path.startsWith('/') ? path : '/' + path}`,
+    `${HTTP_BASE}${path.startsWith('/') ? path : '/' + path}`,
+  ];
 
-// Export server configs for debugging
-export const SERVER_CONFIG = SERVER_CONFIGS;
+  for (let i = retries; i < endpoints.length; i++) {
+    const url = endpoints[i];
+    try {
+      const state = store.getState ? store.getState() : {};
+      const token = state?.auth?.token;
+
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && {Authorization: `Bearer ${token}`}),
+        ...(opts.headers || {}),
+      };
+
+      const cfg = {method: opts.method || 'GET', headers};
+      if (opts.body !== undefined) {
+        cfg.body =
+          typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body);
+      }
+
+      const res = await fetch(url, cfg);
+      const text = await res.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+
+      if (!res.ok) {
+        throw {status: res.status, data};
+      }
+      return data;
+    } catch (error) {
+      let errorMsg = 'Unknown error';
+      if (error) {
+        if (typeof error === 'string') {
+          errorMsg = error;
+        } else if (error.message) {
+          errorMsg = error.message;
+        } else if (error.toString && error.toString() !== '[object Object]') {
+          errorMsg = error.toString();
+        } else {
+          errorMsg =
+            error.code ||
+            error.name ||
+            JSON.stringify(error).substring(0, 100) ||
+            'Network error';
+        }
+      }
+
+      if (i === endpoints.length - 1) {
+        throw {
+          status: 0,
+          data: `Network error - server not reachable. Check if server is running on ${url}. Error: ${errorMsg}`,
+          originalError: errorMsg,
+        };
+      }
+
+      continue;
+    }
+  }
+}
 
 async function request(path, opts = {}) {
-  const url = `${API_BASE}${path.startsWith('/') ? path : '/' + path}`;
+  return requestWithFallback(path, opts, 0);
+}
 
-  console.log('[API] Making request to:', url);
-  console.log('[API] Request options:', opts);
+export async function testNetworkConnectivity() {
+  const testUrls = [
+    `https://${SERVER_IP}`,
+    `http://${SERVER_IP}`,
+    `https://${SERVER_IP}/api/sync  `,
+    `http://${SERVER_IP}/api/sync`,
+    `https://${SERVER_IP}/api/beneficiaries`,
+    `http://${SERVER_IP}/api/beneficiaries`,
+    `https://${SERVER_IP}/api/beneficiaries/with-data`,
+    `http://${SERVER_IP}/api/beneficiaries/with-data`,
+    `https://${SERVER_IP}/api/beneficiaries/unique/${uniqueId}`,
+    `http://${SERVER_IP}/api/beneficiaries/unique/${uniqueId}`,
+  ];
 
-  // Get authentication token from Redux store
-  const state = store.getState();
-  const token = state.auth?.token;
+  const results = [];
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token && {Authorization: `Bearer ${token}`}),
-    ...(opts.headers || {}),
-  };
-
-  const cfg = {method: opts.method || 'GET', headers};
-  if (opts.body !== undefined)
-    cfg.body =
-      typeof opts.body === 'string' ? opts.body : JSON.stringify(opts.body);
-
-  try {
-    console.log('[API] Request config:', cfg);
-    const res = await fetch(url, cfg);
-    console.log('[API] Response status:', res.status);
-    const text = await res.text();
-    console.log('[API] Response text:', text);
-    let data = null;
+  for (const url of testUrls) {
     try {
-      data = text ? JSON.parse(text) : null;
-    } catch (e) {
-      data = text;
-    }
-    if (!res.ok) {
-      console.log(
-        '[API] Request failed with status:',
-        res.status,
-        'data:',
-        data,
-      );
-      throw {status: res.status, data};
-    }
-    console.log('[API] Request successful, data:', data);
-    return data;
-  } catch (error) {
-    console.log('[API] Network error:', error);
-    throw {
-      status: 0,
-      data:
-        'Network error - server not reachable. Check if server is running on ' +
+      const startTime = Date.now();
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {'Content-Type': 'application/json'},
+      });
+      const endTime = Date.now();
+      results.push({
         url,
-    };
+        success: true,
+        status: res.status,
+        time: endTime - startTime,
+      });
+    } catch (error) {
+      results.push({
+        url,
+        success: false,
+        error: error.message || error.toString(),
+      });
+    }
   }
+
+  return results;
 }
 
 export const API = {
   adminRegister: (u, p) =>
-    request('/api/auth/admin/register', {
+    request('/api/admin-auth/register', {
       method: 'POST',
-      body: {username: u, password: p},
+      body: {email: u, password: p},
     }),
   adminLogin: (u, p) =>
-    request('/api/auth/admin/login', {
+    request('/api/admin-auth/login', {
       method: 'POST',
-      body: {username: u, password: p},
+      body: {email: u, password: p},
     }),
+
+  checkAdminStatus: () => request('/api/admin-auth/check'),
+  createFirstAdmin: payload =>
+    request('/api/admin-auth/first-admin', {method: 'POST', body: payload}),
+  adminLogin: payload =>
+    request('/api/admin-auth/login', {method: 'POST', body: payload}),
+  adminRegister: payload =>
+    request('/api/admin-auth/register', {method: 'POST', body: payload}),
+  getAdminProfile: () => request('/api/admin-auth/profile'),
+  updateAdminProfile: payload =>
+    request('/api/admin-auth/profile', {method: 'PUT', body: payload}),
+  changeAdminPassword: payload =>
+    request('/api/admin-auth/change-password', {method: 'PUT', body: payload}),
+  deleteAdminAccount: payload =>
+    request('/api/admin-auth/delete-account', {
+      method: 'DELETE',
+      body: payload,
+    }),
+  deletePatientAccount: () =>
+    request('/api/patient-auth/delete-account', {method: 'DELETE'}),
+
   patientLogin: role =>
-    request('/api/auth/patient/login', {
+    request('/api/patient-auth/login', {method: 'POST', body: {role}}),
+  patientLoginWithGoogle: googleData =>
+    request('/api/patient-auth/google-login', {
       method: 'POST',
-      body: {role: role},
+      body: googleData,
     }),
+  loginWithUniqueId: payload =>
+    request('/api/patient-auth/unique-id-login', {
+      method: 'POST',
+      body: payload,
+    }),
+  loginWithGoogle: payload =>
+    request('/api/patient-auth/google-login', {method: 'POST', body: payload}),
+  mobileLogin: (phoneNumber, otp) =>
+    request('/api/patient-auth/mobile-login', {
+      method: 'POST',
+      body: {phoneNumber, otp},
+    }),
+  emailLogin: (email, otp) =>
+    request('/api/patient-auth/email-login', {
+      method: 'POST',
+      body: {email, otp},
+    }),
+  selectBeneficiary: (phoneNumber, beneficiaryId) =>
+    request('/api/patient-auth/select-beneficiary', {
+      method: 'POST',
+      body: {phoneNumber, beneficiaryId},
+    }),
+  getBeneficiaryByPhone: phoneNumber =>
+    request(
+      `/api/patient-auth/beneficiary/phone/${encodeURIComponent(phoneNumber)}`,
+    ),
+  getBeneficiariesByPhone: phoneNumber =>
+    request(
+      `/api/patient-auth/beneficiaries/phone/${encodeURIComponent(
+        phoneNumber,
+      )}?t=${Date.now()}`,
+    ),
+  getBeneficiaryByEmail: email =>
+    request(`/api/patient-auth/beneficiary/email/${encodeURIComponent(email)}`),
+  getBeneficiariesByEmail: email =>
+    request(
+      `/api/patient-auth/beneficiaries/email/${encodeURIComponent(email)}`,
+    ),
+  getBeneficiariesByUniqueId: uniqueId =>
+    request(
+      `/api/patient-auth/beneficiaries/unique/${encodeURIComponent(uniqueId)}`,
+    ),
+
+  sendOTP: payload => request('/api/otp/send', {method: 'POST', body: payload}),
+  verifyOTP: payload =>
+    request('/api/otp/verify', {method: 'POST', body: payload}),
+  resendOTP: payload =>
+    request('/api/otp/resend', {method: 'POST', body: payload}),
+  sendEmailOTP: payload =>
+    request('/api/otp/send-email', {method: 'POST', body: payload}),
+  verifyEmailOTP: payload =>
+    request('/api/otp/verify-email', {method: 'POST', body: payload}),
+  resendEmailOTP: payload =>
+    request('/api/otp/resend-email', {method: 'POST', body: payload}),
 
   getBeneficiaries: (limit = 1000) =>
     request(`/api/beneficiaries?limit=${limit}`),
@@ -132,8 +244,10 @@ export const API = {
       method: 'POST',
       body: payload,
     }),
+  getBeneficiaryHistory: id => request(`/api/beneficiaries/${id}/history`),
 
   getPatientsCount: () => request('/api/reports/patients'),
+
   registerToken: (token, platform, device_id, model, is_registered = true) =>
     request('/api/notifications/register-token', {
       method: 'POST',
@@ -146,7 +260,6 @@ export const API = {
       }`,
     ),
 
-  // SMS Storage APIs
   storeBeneficiarySMS: smsData =>
     request('/api/sms/beneficiary', {method: 'POST', body: smsData}),
   storeScreeningSMS: smsData =>
@@ -164,11 +277,20 @@ export const API = {
       body: {status, errorMessage},
     }),
 
-  // Multi-Device SMS APIs
   getDevices: () => request('/api/devices'),
   sendSMSToDevice: (deviceId, smsData) =>
     request(`/api/devices/${deviceId}/sms`, {method: 'POST', body: smsData}),
   getDeviceSMSStatus: deviceId =>
     request(`/api/devices/${deviceId}/sms/status`),
   getDevicesSMSStatus: () => request('/api/devices/sms/status'),
+
+  getTodayAdherence: beneficiaryId =>
+    request(`/api/dot/today-adherence/${beneficiaryId}`),
+  getAdherenceData: beneficiaryId =>
+    request(`/api/dot/adherence-data/${beneficiaryId}`),
+  markIFATaken: beneficiaryId =>
+    request('/api/dot/mark-ifa-taken', {method: 'POST', body: {beneficiaryId}}),
+  getAdherenceReport: () => request('/api/dot/adherence-report'),
 };
+
+export default API;

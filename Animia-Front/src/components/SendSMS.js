@@ -49,18 +49,11 @@ const SendSMS = ({
       }
 
       if (success) {
-        console.log('[SendSMS] SMS app opened successfully!');
         handleClose();
       } else {
-        console.error(
-          '[SendSMS] Cannot open SMS app. Please try manually sending SMS to: ' +
-            formattedNumber,
-        );
-      }
+        }
     } catch (error) {
-      console.error('[SendSMS] Error:', error);
-      console.error('[SendSMS] Failed to open SMS app');
-    } finally {
+      } finally {
       setSending(false);
     }
   };
@@ -162,7 +155,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -177,7 +170,7 @@ const styles = StyleSheet.create({
     padding: spacing.xs,
   },
   content: {
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
   },
   inputGroup: {
@@ -193,7 +186,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     fontSize: typography.sizes.md,
     color: colors.text,
@@ -211,7 +204,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.horizontal, // 16px left/right
+    paddingHorizontal: spacing.horizontal, 
     paddingVertical: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,

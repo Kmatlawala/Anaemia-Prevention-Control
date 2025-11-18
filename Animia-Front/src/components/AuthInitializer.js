@@ -16,10 +16,9 @@ const AuthInitializer = ({children}) => {
         await dispatch(initializeAuth());
         setLoadingText('Ready...');
       } catch (error) {
-        console.error('Auth initialization failed:', error);
         setLoadingText('Initialization failed');
       } finally {
-        // Add small delay to prevent flash
+        
         setTimeout(() => {
           setIsLoading(false);
         }, 300);
