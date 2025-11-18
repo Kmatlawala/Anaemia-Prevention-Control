@@ -184,11 +184,40 @@ async function sendFollowUpSMS(beneficiary) {
   );
 }
 
+/**
+ * Send generic SMS with custom message
+ * @param {string} phoneNumber - Phone number
+ * @param {string} message - SMS message content
+ */
+async function sendSMS(phoneNumber, message) {
+  try {
+    if (!phoneNumber || !message) {
+      console.log('[SMS Service] Missing phone number or message');
+      return false;
+    }
+
+    // Format phone number
+    const formattedPhone = formatPhoneNumber(phoneNumber);
+    
+    // Log the SMS that would be sent
+    console.log(`[SMS Service] SMS to ${formattedPhone}: ${message}`);
+    
+    // In production, integrate with SMS gateway here
+    // Example: Twilio, AWS SNS, etc.
+    
+    return true;
+  } catch (error) {
+    console.error('[SMS Service] Error sending SMS:', error);
+    return false;
+  }
+}
+
 module.exports = {
   sendBeneficiarySMS,
   sendBulkSMS,
   sendRegistrationSMS,
   sendUpdateSMS,
   sendFollowUpSMS,
+  sendSMS,
   formatPhoneNumber
 };

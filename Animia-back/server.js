@@ -1,12 +1,33 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const adminRouter = require('./routes/admin');
+const adminAuthRouter = require('./routes/adminAuth');
+const patientAuthRouter = require('./routes/patientAuth');
+const dotRouter = require('./routes/dot');
 const beneficiariesRouter = require('./routes/beneficiaries');
 const reportsRouter = require('./routes/reports');
 const notificationsRouter = require('./routes/notifications');
 const devicesRouter = require('./routes/devices');
 const syncRouter = require('./routes/sync');
+
+// Load OTP router with error handling
+let otpRouter;
+try {
+  otpRouter = require('./routes/otp');
+} catch (error) {
+  console.error('[Server] Failed to load OTP router:', error);
+  otpRouter = require('express').Router();
+  otpRouter.post('/send', (req, res) => {
+    res.status(503).json({ success: false, error: 'OTP service not available' });
+  });
+}
+
 const pool = require('./db');
 
 // Load environment variables
@@ -22,14 +43,79 @@ try {
   const serviceAccount = require(saPath);
   adminSdk.initializeApp({ credential: adminSdk.credential.cert(serviceAccount) });
   admin = adminSdk;
-  console.log('[FCM] Firebase Admin initialized');
 } catch (e) {
   console.warn('[FCM] Firebase Admin not initialized:', e?.message || e);
 }
 
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+  crossOriginEmbedderPolicy: false
+}));
+
+// Rate limiting for production
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // limit each IP to 100 requests per windowMs in production
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  trustProxy: false, // Disable trust proxy to avoid security warnings
+});
+
+app.use(limiter);
+
+// CORS configuration for production - Allow all origins for mobile apps
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, curl, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // Allow all origins for production (mobile apps don't have fixed origins)
+    // In development, you can restrict this to specific origins
+    if (process.env.NODE_ENV === 'production') {
+      // Allow all origins for mobile app compatibility
+      return callback(null, true);
+    }
+    
+    // For development, allow specific origins
+    const allowedOrigins = [
+      'https://3.80.46.128',
+      'http://3.80.46.128:3000',
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'http://192.168.31.143:3000'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      // In development, log and allow (for debugging)
+      console.log('[CORS] Allowing origin:', origin);
+      callback(null, true);
+    }
+  },
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
 
 // Simple request/response logger
 app.use((req, res, next) => {
@@ -56,15 +142,19 @@ app.get('/', (req, res) => {
 });
 
 // Mount modular routers that use the shared pool via require('../db')
-app.use('/api/auth/admin', adminRouter);
-app.use('/api/auth/patient', require('./routes/patientAuth'));
+app.use('/api/admin', adminRouter);
+app.use('/api/admin-auth', adminAuthRouter);
+app.use('/api/patient-auth', patientAuthRouter);
+app.use('/api/dot', dotRouter);
 app.use('/api/beneficiaries', beneficiariesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/notifications', notificationsRouter);
 app.use('/api/devices', devicesRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/otp', otpRouter);
+console.log('[Server] OTP router mounted at /api/otp');
 
-// Fallback error logger (in case any middleware uses next(err))
+// Fallback error logger (in case any middleware uses next(err))  
 // Note: Keep after routes
 // eslint-disable-next-line no-unused-vars
 app.use((err, _req, res, _next) => {
@@ -78,9 +168,16 @@ app.use((err, _req, res, _next) => {
     // Core domain tables
     await pool.query(`CREATE TABLE IF NOT EXISTS admins (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      username VARCHAR(191) UNIQUE,
-      password VARCHAR(191) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      is_active BOOLEAN DEFAULT TRUE,
+      permissions JSON DEFAULT NULL,
+      last_login TIMESTAMP NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_email (email),
+      INDEX idx_is_active (is_active)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
 
     await pool.query(`CREATE TABLE IF NOT EXISTS beneficiaries (
@@ -132,12 +229,15 @@ app.use((err, _req, res, _next) => {
     await ensureColumn('beneficiaries', 'front_document', 'front_document TEXT NULL');
     await ensureColumn('beneficiaries', 'back_document', 'back_document TEXT NULL');
     await ensureColumn('beneficiaries', 'follow_up_due', 'follow_up_due DATETIME NULL');
+    await ensureColumn('beneficiaries', 'follow_up_done', 'follow_up_done TINYINT(1) DEFAULT 0');
+    await ensureColumn('beneficiaries', 'last_followed', 'last_followed DATETIME NULL');
     await ensureColumn('beneficiaries', 'hb', 'hb DECIMAL(5,2) NULL');
     await ensureColumn('beneficiaries', 'calcium_qty', 'calcium_qty INT NULL');
     await ensureColumn('beneficiaries', 'short_id', 'short_id VARCHAR(32) NULL');
     await ensureColumn('screenings', 'anemia_category', 'anemia_category VARCHAR(64) NULL');
     await ensureColumn('screenings', 'doctor_name', 'doctor_name VARCHAR(255) NULL');
     await ensureColumn('screenings', 'pallor', 'pallor VARCHAR(32) NULL');
+    await ensureColumn('screenings', 'pallor_location', 'pallor_location VARCHAR(32) NULL');
     await ensureColumn('screenings', 'visit_type', 'visit_type VARCHAR(32) NULL');
     await ensureColumn('screenings', 'severity', 'severity VARCHAR(32) NULL');
 
@@ -148,6 +248,7 @@ app.use((err, _req, res, _next) => {
       hemoglobin DECIMAL(5,2) NULL,
       anemia_category VARCHAR(64) NULL,
       pallor VARCHAR(32) NULL,
+      pallor_location VARCHAR(32) NULL,
       visit_type VARCHAR(32) NULL,
       severity VARCHAR(32) NULL,
       notes TEXT NULL,
@@ -246,7 +347,14 @@ app.use((err, _req, res, _next) => {
     
     // Ensure is_registered column exists (migration for existing tables)
     try {
-      await pool.query(`ALTER TABLE notification_tokens ADD COLUMN IF NOT EXISTS is_registered TINYINT(1) DEFAULT 0`);
+      // Check if column exists first
+      const [columns] = await pool.query(
+        'SELECT COUNT(*) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+        ['notification_tokens', 'is_registered']
+      );
+      if (!columns[0] || Number(columns[0].c) === 0) {
+        await pool.query(`ALTER TABLE notification_tokens ADD COLUMN is_registered TINYINT(1) DEFAULT 0`);
+      }
     } catch (e) {
       // Column might already exist, ignore error
       console.log('[DB] is_registered column migration:', e?.message || 'already exists');
@@ -259,6 +367,34 @@ app.use((err, _req, res, _next) => {
       device_id VARCHAR(191) NULL,
       sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+    // OTP requests table
+    await pool.query(`CREATE TABLE IF NOT EXISTS otp_requests (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      phone_hash VARCHAR(64) NOT NULL,
+      otp_hash VARCHAR(64) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      attempts INT DEFAULT 0,
+      status ENUM('pending', 'verified', 'expired', 'failed') DEFAULT 'pending',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      verified_at TIMESTAMP NULL,
+      INDEX idx_phone_hash (phone_hash),
+      INDEX idx_status (status),
+      INDEX idx_expires_at (expires_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    console.log('[DB] OTP requests table created/verified');
+
+    // DOT Adherence table for IFA tracking
+    await pool.query(`CREATE TABLE IF NOT EXISTS dot_adherence (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      beneficiary_id INT NOT NULL,
+      taken_date DATE NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_beneficiary_id (beneficiary_id),
+      INDEX idx_taken_date (taken_date),
+      UNIQUE KEY unique_daily_record (beneficiary_id, taken_date)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+    console.log('[DB] DOT adherence table created/verified');
   } catch (e) {
     console.warn('[DB] notifications table init failed', e?.message || e);
   }
@@ -272,6 +408,56 @@ app.locals.firebaseAdmin = admin;
 //////////////////////////
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`API listening on http://0.0.0.0:${PORT}`);
-});
+const HOST = process.env.HOST || '0.0.0.0';
+
+app.enable('trust proxy');
+
+// Start HTTPS server for production
+if (process.env.NODE_ENV === 'production') {
+  try {
+    const sslCertPath = process.env.SSL_CERT_PATH || path.join(__dirname, 'ssl', 'cert.pem');
+    const sslKeyPath = process.env.SSL_KEY_PATH || path.join(__dirname, 'ssl', 'key.pem');
+    
+    // Check if SSL certificates exist
+    if (fs.existsSync(sslCertPath) && fs.existsSync(sslKeyPath)) {
+      const options = {
+        key: fs.readFileSync(sslKeyPath),
+        cert: fs.readFileSync(sslCertPath)
+      };
+      
+      // Create HTTPS server on port 443 (standard HTTPS port)
+      const HTTPS_PORT = 443;
+      const httpsServer = https.createServer(options, app);
+      
+      httpsServer.listen(HTTPS_PORT, HOST, () => {
+        console.log(`🔒 HTTPS Server running on https://${HOST}:${HTTPS_PORT}`);
+        console.log(`🔒 Production API available at: https://3.80.46.128`);
+        console.log(`🔒 SSL Certificate loaded successfully`);
+      });
+      
+      // Also start HTTP server on port 3000 for fallback
+      app.listen(PORT, HOST, () => {
+        console.log(`📱 HTTP Server running on http://${HOST}:${PORT} (fallback)`);
+      });
+    } else {
+      console.warn('⚠️  SSL certificates not found. Starting HTTP server only...');
+      app.listen(PORT, HOST, () => {
+        console.log(`⚠️  HTTP Server running on http://${HOST}:${PORT}`);
+        console.log('⚠️  WARNING: Using HTTP in production is not secure!');
+      });
+    }
+  } catch (error) {
+    console.error('❌ HTTPS server creation failed:', error.message);
+    console.log('🔄 Falling back to HTTP server...');
+    app.listen(PORT, HOST, () => {
+      console.log(`⚠️  HTTP Server running on http://${HOST}:${PORT}`);
+      console.log('⚠️  WARNING: Using HTTP in production is not secure!');
+    });
+  }
+} else {
+  // Development mode - use HTTP
+  app.listen(PORT, HOST, () => {
+    console.log(`🚀 Development server running on http://${HOST}:${PORT}`);
+    console.log(`📱 API available at: http://localhost:${PORT}`);
+  });
+}

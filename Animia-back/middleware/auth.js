@@ -33,25 +33,107 @@ const authenticateToken = async (req, res, next) => {
     }
     
     // Handle admin users (check database)
-    const [rows] = await pool.query('SELECT id, username FROM admins WHERE id = ?', [decoded.id]);
-    
-    if (!rows.length) {
-      return res.status(401).json({ 
-        error: 'User not found',
-        errorType: 'USER_NOT_FOUND'
+    try {
+      // Try query with different column combinations - handle various table schemas
+      let rows;
+      try {
+        // Try with full schema first (name, email, is_active)
+        [rows] = await pool.query('SELECT id, name, email, is_active FROM admins WHERE id = ?', [decoded.id]);
+      } catch (error1) {
+        // If name column doesn't exist, try without it
+        if (error1.code === 'ER_BAD_FIELD_ERROR' && error1.sqlMessage && error1.sqlMessage.includes('name')) {
+          try {
+            [rows] = await pool.query('SELECT id, email, is_active FROM admins WHERE id = ?', [decoded.id]);
+          } catch (error2) {
+            // If email column doesn't exist, try with username
+            if (error2.code === 'ER_BAD_FIELD_ERROR' && error2.sqlMessage && error2.sqlMessage.includes('email')) {
+              try {
+                [rows] = await pool.query('SELECT id, username, is_active FROM admins WHERE id = ?', [decoded.id]);
+              } catch (error3) {
+                // If is_active doesn't exist, try minimal
+                if (error3.code === 'ER_BAD_FIELD_ERROR' && error3.sqlMessage && error3.sqlMessage.includes('is_active')) {
+                  try {
+                    [rows] = await pool.query('SELECT id, username FROM admins WHERE id = ?', [decoded.id]);
+                  } catch (error4) {
+                    // Last resort: just id
+                    [rows] = await pool.query('SELECT id FROM admins WHERE id = ?', [decoded.id]);
+                  }
+                } else {
+                  throw error3;
+                }
+              }
+            } else if (error2.code === 'ER_BAD_FIELD_ERROR' && error2.sqlMessage && error2.sqlMessage.includes('is_active')) {
+              // Email exists but is_active doesn't
+              try {
+                [rows] = await pool.query('SELECT id, email FROM admins WHERE id = ?', [decoded.id]);
+              } catch (error5) {
+                // Email might not exist either
+                if (error5.code === 'ER_BAD_FIELD_ERROR' && error5.sqlMessage && error5.sqlMessage.includes('email')) {
+                  [rows] = await pool.query('SELECT id, username FROM admins WHERE id = ?', [decoded.id]);
+                } else {
+                  throw error5;
+                }
+              }
+            } else {
+              throw error2;
+            }
+          }
+        } else if (error1.code === 'ER_BAD_FIELD_ERROR' && error1.sqlMessage && error1.sqlMessage.includes('email')) {
+          // Email doesn't exist, try username
+          try {
+            [rows] = await pool.query('SELECT id, username, is_active FROM admins WHERE id = ?', [decoded.id]);
+          } catch (error6) {
+            if (error6.code === 'ER_BAD_FIELD_ERROR' && error6.sqlMessage && error6.sqlMessage.includes('is_active')) {
+              [rows] = await pool.query('SELECT id, username FROM admins WHERE id = ?', [decoded.id]);
+            } else {
+              throw error6;
+            }
+          }
+        } else {
+          throw error1;
+        }
+      }
+      
+      if (!rows || !rows.length) {
+        console.log('[AUTH] Admin not found in database for id:', decoded.id);
+        return res.status(401).json({ 
+          error: 'User not found or inactive',
+          errorType: 'USER_NOT_FOUND'
+        });
+      }
+      
+      // Check is_active if column exists (may not exist in old schema)
+      if (rows[0].hasOwnProperty('is_active') && !rows[0].is_active) {
+        console.log('[AUTH] Admin is inactive for id:', decoded.id);
+        return res.status(401).json({ 
+          error: 'User not found or inactive',
+          errorType: 'USER_NOT_FOUND'
+        });
+      }
+
+      // Add user info to request object - handle different column names
+      req.user = {
+        id: decoded.id,
+        name: rows[0].name || rows[0].email || rows[0].username || 'Admin',
+        email: rows[0].email || rows[0].username || decoded.email || null,
+        username: rows[0].username || rows[0].email || null,
+        role: decoded.role || 'Admin',
+        permissions: decoded.permissions || []
+      };
+
+      next();
+    } catch (dbError) {
+      console.error('[AUTH] Database query failed:', dbError.message);
+      console.error('[AUTH] Error code:', dbError.code);
+      
+      return res.status(500).json({ 
+        error: 'Database error during authentication',
+        errorType: 'DB_ERROR'
       });
     }
-
-    // Add user info to request object
-    req.user = {
-      id: decoded.id,
-      username: decoded.username,
-      role: decoded.role || 'Admin'
-    };
-
-    next();
   } catch (error) {
     console.error('[AUTH] Token verification failed:', error.message);
+    console.error('[AUTH] Error stack:', error.stack);
     
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ 

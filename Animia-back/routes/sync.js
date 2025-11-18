@@ -4,7 +4,13 @@ const router = express.Router();
 const pool = require('../db');
 const smsService = require('../services/smsService');
 
-// Handle offline queue sync
+function toMySQLDateTime(dt) {
+  if (!dt) return null;
+  const d = typeof dt === 'string' ? new Date(dt) : dt;
+  if (isNaN(d)) return null;
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 router.post('/', async (req, res) => {
   try {
     const { op, entity, payload, timestamp } = req.body;
@@ -15,12 +21,13 @@ router.post('/', async (req, res) => {
       case 'CREATE':
         if (entity === 'beneficiaries') {
           const result = await pool.query(
-            'INSERT INTO beneficiaries (name, age, gender, phone, address, id_number, aadhaar_hash, dob, category, alt_phone, doctor_name, doctor_phone, registration_date, location, front_document, back_document, follow_up_due, hb, calcium_qty, short_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO beneficiaries (name, age, gender, phone, email, address, id_number, aadhaar_hash, dob, category, alt_phone, doctor_name, doctor_phone, registration_date, location, front_document, back_document, follow_up_due, hb, calcium_qty, short_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
               payload.name,
               payload.age,
               payload.gender,
               payload.phone,
+              payload.email || null,
               payload.address,
               payload.id_number,
               payload.aadhaar_hash,
@@ -29,11 +36,11 @@ router.post('/', async (req, res) => {
               payload.alt_phone,
               payload.doctor_name,
               payload.doctor_phone,
-              payload.registration_date,
+              toMySQLDateTime(payload.registration_date),
               payload.location,
               payload.front_document,
               payload.back_document,
-              payload.follow_up_due,
+              toMySQLDateTime(payload.follow_up_due),
               payload.hb,
               payload.calcium_qty,
               payload.short_id
@@ -94,16 +101,17 @@ router.post('/', async (req, res) => {
           }
         } else if (entity === 'screenings') {
           const result = await pool.query(
-            'INSERT INTO screenings (beneficiary_id, doctor_name, hemoglobin, anemia_category, pallor, visit_type, severity, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO screenings (beneficiary_id, doctor_name, hemoglobin, anemia_category, pallor, pallor_location, visit_type, severity, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
               payload.beneficiaryId,
-              payload.doctor_name,
-              payload.hemoglobin,
-              payload.anemia_category,
-              payload.pallor,
-              payload.visit_type,
-              payload.severity,
-              payload.notes
+              payload.doctor_name || '',
+              payload.hemoglobin || 0,
+              payload.anemia_category || '',
+              payload.pallor || '',
+              payload.pallor_location || '',
+              payload.visit_type || '',
+              payload.severity || '',
+              payload.notes || ''
             ]
           );
           console.log('[Sync] Created screening:', result[0].insertId);
