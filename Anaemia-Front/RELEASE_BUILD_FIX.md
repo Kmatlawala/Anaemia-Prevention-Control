@@ -1,22 +1,26 @@
 # Fix DEVELOPER_ERROR in Release Build
 
 ## Problem
+
 Google Sign-In works in debug mode but shows "DEVELOPER_ERROR" in release builds.
 
 ## Root Cause
-Release builds use a different keystore (`animia-release-key.keystore`) than debug builds, which generates a different SHA-1 fingerprint. Firebase Console needs BOTH fingerprints registered.
+
+Release builds use a different keystore (`anaemia-release-key.keystore`) than debug builds, which generates a different SHA-1 fingerprint. Firebase Console needs BOTH fingerprints registered.
 
 ## Solution
 
 ### Step 1: Get Release SHA-1 Fingerprint
 
 **Windows:**
+
 ```bash
 cd android
 get-release-sha1.bat
 ```
 
 **Mac/Linux:**
+
 ```bash
 cd android
 chmod +x get-release-sha1.sh
@@ -24,12 +28,14 @@ chmod +x get-release-sha1.sh
 ```
 
 **Manual Method:**
+
 ```bash
 cd android/app
-keytool -list -v -keystore animia-release-key.keystore -alias animia-key-alias -storepass animia123 -keypass animia123
+keytool -list -v -keystore anaemia-release-key.keystore -alias anaemia-key-alias -storepass animia123 -keypass animia123
 ```
 
 Look for the line that says:
+
 ```
 SHA1: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ```
@@ -48,10 +54,12 @@ SHA1: XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX:XX
 ### Step 3: Verify Debug SHA-1 is Also Added
 
 Make sure you have BOTH fingerprints:
+
 - **Debug SHA-1** (from debug.keystore)
-- **Release SHA-1** (from animia-release-key.keystore)
+- **Release SHA-1** (from anaemia-release-key.keystore)
 
 To get Debug SHA-1:
+
 ```bash
 cd android
 ./gradlew signingReport
@@ -62,6 +70,7 @@ Look for the SHA-1 under `Variant: debug` section.
 ### Step 4: Wait for Propagation
 
 After adding the fingerprint:
+
 - Wait **5-10 minutes** for Firebase to propagate changes
 - You may need to download a new `google-services.json` file
 - Restart the app after waiting
@@ -77,13 +86,17 @@ cd android
 ## Additional Checks
 
 ### Verify ProGuard Rules
+
 The ProGuard rules have been updated to prevent Google Sign-In classes from being obfuscated. Check `android/app/proguard-rules.pro`.
 
 ### Verify google-services.json
+
 Make sure `android/app/google-services.json` is up to date and matches your Firebase project.
 
 ### Verify Package Name
+
 Ensure the package name in `build.gradle` matches Firebase Console:
+
 ```gradle
 applicationId "com.animiahealth"
 ```
@@ -109,7 +122,6 @@ applicationId "com.animiahealth"
 ## Quick Reference
 
 - **Debug Keystore**: `android/app/debug.keystore`
-- **Release Keystore**: `android/app/animia-release-key.keystore`
+- **Release Keystore**: `android/app/anaemia-release-key.keystore`
 - **Package Name**: `com.animiahealth`
 - **Firebase Console**: https://console.firebase.google.com/
-

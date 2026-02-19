@@ -59,7 +59,7 @@ async function requestSMSPermissions() {
     if (!sendSmsGranted) {
       Alert.alert(
         'SMS Permission Required',
-        'This app needs SMS permission to send healthcare notifications. Please enable it in Settings > Apps > Animia > Permissions.',
+        'This app needs SMS permission to send healthcare notifications. Please enable it in Settings > Apps > Anaemia > Permissions.',
         [
           {text: 'Cancel', style: 'cancel'},
           {

@@ -1,6 +1,6 @@
-# Redux Toolkit Setup for Animia App
+# Redux Toolkit Setup for Anaemia App
 
-This directory contains the complete Redux Toolkit setup for the Animia React Native app, providing centralized state management with modern Redux patterns.
+This directory contains the complete Redux Toolkit setup for the Anaemia React Native app, providing centralized state management with modern Redux patterns.
 
 ## 📁 Structure
 
@@ -19,6 +19,7 @@ src/store/
 ## 🚀 Features
 
 ### ✅ Complete Redux Toolkit Implementation
+
 - **Slices**: Modern Redux with `createSlice` for all features
 - **Async Thunks**: Built-in async action handling
 - **Selectors**: Memoized selectors for performance
@@ -26,17 +27,20 @@ src/store/
 - **TypeScript Ready**: Full type safety support
 
 ### 🔐 Authentication Management
+
 - User login/logout with persistence
 - Role-based access control
 - Token management
 - Auto-initialization on app start
 
 ### 📊 Data Management
+
 - **Beneficiaries**: CRUD operations with filtering
 - **Reports**: Report generation and filtering
 - **App State**: Theme, language, notifications, sync status
 
 ### 🎯 State Features
+
 - **Persistence**: Auth state persisted to AsyncStorage
 - **Offline Support**: Network status tracking
 - **Error Handling**: Comprehensive error management
@@ -49,13 +53,13 @@ src/store/
 
 ```javascript
 import React from 'react';
-import { useAuth, useBeneficiaries, useReports } from '../store/hooks';
+import {useAuth, useBeneficiaries, useReports} from '../store/hooks';
 
 function MyComponent() {
-  const { isAuthenticated, user, loginUser } = useAuth();
-  const { beneficiaries, fetchBeneficiaries } = useBeneficiaries();
-  const { reports, generateReport } = useReports();
-  
+  const {isAuthenticated, user, loginUser} = useAuth();
+  const {beneficiaries, fetchBeneficiaries} = useBeneficiaries();
+  const {reports, generateReport} = useReports();
+
   // Component logic...
 }
 ```
@@ -63,13 +67,16 @@ function MyComponent() {
 ### 2. Direct Redux Usage
 
 ```javascript
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchBeneficiaries, selectBeneficiaries } from '../store/beneficiarySlice';
+import {useSelector, useDispatch} from 'react-redux';
+import {
+  fetchBeneficiaries,
+  selectBeneficiaries,
+} from '../store/beneficiarySlice';
 
 function MyComponent() {
   const dispatch = useDispatch();
   const beneficiaries = useSelector(selectBeneficiaries);
-  
+
   const handleFetch = () => {
     dispatch(fetchBeneficiaries());
   };
@@ -82,7 +89,7 @@ function MyComponent() {
 // Login user
 const handleLogin = async () => {
   try {
-    await dispatch(loginUser({ username, password })).unwrap();
+    await dispatch(loginUser({username, password})).unwrap();
     // Success handling
   } catch (error) {
     // Error handling
@@ -103,22 +110,26 @@ const handleFetch = async () => {
 ## 🔧 Available Actions
 
 ### Authentication
+
 - `loginUser(credentials)` - Login with username/password
 - `logout()` - Logout user
 - `initializeAuth()` - Initialize auth state on app start
 
 ### Beneficiaries
+
 - `fetchBeneficiaries(filters)` - Fetch beneficiaries with filters
 - `addBeneficiary(data)` - Add new beneficiary
 - `updateBeneficiary({id, updates})` - Update beneficiary
 - `addIntervention(data)` - Add intervention to beneficiary
 
 ### Reports
+
 - `fetchReports(filters)` - Fetch reports with filters
 - `generateReport(data)` - Generate new report
 - `setFilters(filters)` - Update report filters
 
 ### App
+
 - `initializeApp()` - Initialize app state
 - `syncData()` - Sync data with server
 - `setTheme(theme)` - Change app theme
@@ -127,40 +138,44 @@ const handleFetch = async () => {
 ## 🎯 Selectors
 
 ### Basic Selectors
+
 ```javascript
 // Auth
-selectIsAuthenticated, selectUser, selectRole, selectToken
+selectIsAuthenticated, selectUser, selectRole, selectToken;
 
-// Beneficiaries  
-selectBeneficiaries, selectCurrentBeneficiary, selectInterventions
+// Beneficiaries
+selectBeneficiaries, selectCurrentBeneficiary, selectInterventions;
 
 // Reports
-selectReports, selectCurrentReport, selectReportFilters
+selectReports, selectCurrentReport, selectReportFilters;
 
 // App
-selectIsOnline, selectTheme, selectLanguage, selectSyncStatus
+selectIsOnline, selectTheme, selectLanguage, selectSyncStatus;
 ```
 
 ### Memoized Selectors
+
 ```javascript
 // Filtered data
-selectFilteredBeneficiaries, selectFilteredReports
+selectFilteredBeneficiaries, selectFilteredReports;
 
 // Statistics
-selectBeneficiaryStats, selectReportStats
+selectBeneficiaryStats, selectReportStats;
 
 // Combined data
-selectDashboardData, selectUserPermissions
+selectDashboardData, selectUserPermissions;
 ```
 
 ## 🔄 State Flow
 
 1. **App Initialization**
+
    - Store configured with all slices
    - Auth state loaded from AsyncStorage
    - App state initialized
 
 2. **User Actions**
+
    - Components dispatch actions
    - Slices handle state updates
    - Selectors provide filtered data
@@ -174,23 +189,26 @@ selectDashboardData, selectUserPermissions
 ## 🎨 Best Practices
 
 ### 1. Use Custom Hooks
+
 ```javascript
 // ✅ Good
-const { beneficiaries, loading } = useBeneficiaries();
+const {beneficiaries, loading} = useBeneficiaries();
 
 // ❌ Avoid
 const beneficiaries = useSelector(state => state.beneficiary.beneficiaries);
 ```
 
 ### 2. Handle Loading States
+
 ```javascript
-const { loading, error } = useBeneficiaries();
+const {loading, error} = useBeneficiaries();
 
 if (loading) return <LoadingSpinner />;
 if (error) return <ErrorMessage error={error} />;
 ```
 
 ### 3. Use Memoized Selectors
+
 ```javascript
 // ✅ Good - Memoized
 const filteredData = useSelector(selectFilteredBeneficiaries);
@@ -200,6 +218,7 @@ const filteredData = beneficiaries.filter(b => b.category === 'Pregnant');
 ```
 
 ### 4. Error Handling
+
 ```javascript
 const handleAction = async () => {
   try {
@@ -242,4 +261,4 @@ const handleAction = async () => {
 4. **Performance Monitoring**: Track state performance
 5. **Testing**: Add comprehensive tests
 
-This Redux setup provides a solid foundation for scalable state management in your Animia app! 🎉
+This Redux setup provides a solid foundation for scalable state management in your Anaemia app! 🎉

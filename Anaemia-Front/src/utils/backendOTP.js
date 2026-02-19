@@ -1,11 +1,8 @@
-
-
 import {API} from './api';
 import {sendNativeSMS} from './fixedSMS';
 
 export async function sendOTPViaBackend(phoneNumber) {
   try {
-    
     const formattedPhone = phoneNumber.startsWith('+')
       ? phoneNumber
       : `+91${phoneNumber}`;
@@ -15,26 +12,23 @@ export async function sendOTPViaBackend(phoneNumber) {
     });
 
     if (response.success) {
-      
       if (response.otp) {
         try {
-          const smsMessage = `Your Animia OTP is: ${response.otp}. Valid for 5 minutes. Do not share with anyone.`;
-          
+          const smsMessage = `Your Anaemia OTP is: ${response.otp}. Valid for 5 minutes. Do not share with anyone.`;
+
           const smsResult = await sendNativeSMS(formattedPhone, smsMessage);
 
           if (smsResult) {
-            } else {
-            }
-        } catch (smsError) {
-          
-        }
+          } else {
+          }
+        } catch (smsError) {}
       }
 
       return {
         success: true,
         message: response.message || 'OTP sent successfully',
-        expiresIn: response.expiresIn || 300, 
-        
+        expiresIn: response.expiresIn || 300,
+
         ...(response.otp && {otp: response.otp}),
       };
     } else {
@@ -44,7 +38,6 @@ export async function sendOTPViaBackend(phoneNumber) {
       };
     }
   } catch (error) {
-    
     if (error.status === 429) {
       return {
         success: false,
@@ -62,7 +55,6 @@ export async function sendOTPViaBackend(phoneNumber) {
 
 export async function verifyBackendOTP(phoneNumber, otp) {
   try {
-    
     const formattedPhone = phoneNumber.startsWith('+')
       ? phoneNumber
       : `+91${phoneNumber}`;
@@ -95,7 +87,6 @@ export async function verifyBackendOTP(phoneNumber, otp) {
 
 export async function resendOTP(phoneNumber) {
   try {
-    
     const formattedPhone = phoneNumber.startsWith('+')
       ? phoneNumber
       : `+91${phoneNumber}`;
@@ -105,19 +96,16 @@ export async function resendOTP(phoneNumber) {
     });
 
     if (response.success) {
-      
       if (response.otp) {
         try {
-          const smsMessage = `Your Animia OTP is: ${response.otp}. Valid for 5 minutes. Do not share with anyone.`;
-          
+          const smsMessage = `Your Anaemia OTP is: ${response.otp}. Valid for 5 minutes. Do not share with anyone.`;
+
           const smsResult = await sendNativeSMS(formattedPhone, smsMessage);
 
           if (smsResult) {
-            } else {
-            }
-        } catch (smsError) {
-          
-        }
+          } else {
+          }
+        } catch (smsError) {}
       }
 
       return {
@@ -142,7 +130,6 @@ export async function resendOTP(phoneNumber) {
 
 export async function sendOTPViaEmail(email) {
   try {
-    
     const normalizedEmail = email.toLowerCase().trim();
 
     const response = await API.sendEmailOTP({
@@ -153,8 +140,8 @@ export async function sendOTPViaEmail(email) {
       return {
         success: true,
         message: response.message || 'OTP sent successfully to email',
-        expiresIn: response.expiresIn || 300, 
-        
+        expiresIn: response.expiresIn || 300,
+
         ...(response.otp && {otp: response.otp}),
       };
     } else {
@@ -164,7 +151,6 @@ export async function sendOTPViaEmail(email) {
       };
     }
   } catch (error) {
-    
     if (error.status === 429) {
       return {
         success: false,
@@ -182,7 +168,6 @@ export async function sendOTPViaEmail(email) {
 
 export async function verifyEmailOTP(email, otp) {
   try {
-    
     const normalizedEmail = email.toLowerCase().trim();
 
     const response = await API.verifyEmailOTP({
@@ -213,7 +198,6 @@ export async function verifyEmailOTP(email, otp) {
 
 export async function resendEmailOTP(email) {
   try {
-    
     const normalizedEmail = email.toLowerCase().trim();
 
     const response = await API.resendEmailOTP({
@@ -243,13 +227,12 @@ export async function resendEmailOTP(email) {
 
 export async function sendOTPViaBeneficiarySMS(phoneNumber, name = 'User') {
   try {
-    
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     const response = await API.storeBeneficiarySMS({
       phone: phoneNumber,
       name: name,
-      message: `Your Animia OTP is: ${otp}. Valid for 5 minutes.`,
+      message: `Your Anaemia OTP is: ${otp}. Valid for 5 minutes.`,
       type: 'otp',
       timestamp: new Date().toISOString(),
     });

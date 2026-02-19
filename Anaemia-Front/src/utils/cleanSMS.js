@@ -31,7 +31,7 @@ export async function sendNativeSMS(phoneNumber, message) {
     }
 
     const formattedNumber = formatPhoneNumber(phoneNumber);
-    
+
     const result = await SMSModule.sendSMS(formattedNumber, message);
     if (result && result.success) {
       return true;
@@ -45,11 +45,10 @@ export async function sendNativeSMS(phoneNumber, message) {
 
 export async function sendSMSApp(phoneNumber, message) {
   try {
-    
     const formattedNumber = formatPhoneNumber(phoneNumber);
-    
+
     const smsUrl = `sms:${formattedNumber}?body=${encodeURIComponent(message)}`;
-    
+
     await Linking.openURL(smsUrl);
     return true;
   } catch (error) {
@@ -59,13 +58,12 @@ export async function sendSMSApp(phoneNumber, message) {
 
 export async function sendSMS(phoneNumber, message) {
   try {
-    
     if (SMSModule) {
       const nativeResult = await sendNativeSMS(phoneNumber, message);
       if (nativeResult) {
         return true;
       }
-      }
+    }
 
     const appResult = await sendSMSApp(phoneNumber, message);
     return appResult;
@@ -130,7 +128,6 @@ export async function sendSMSToBeneficiary(beneficiary, message) {
         if (SMSModule) {
           await new Promise(resolve => setTimeout(resolve, 1000));
         } else {
-          
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       } catch (error) {
@@ -220,7 +217,7 @@ export async function sendSMSToAllBeneficiaries(beneficiaries, message) {
 export async function sendRegistrationSMS(beneficiary) {
   const message = `Hello ${
     beneficiary.name
-  }, your registration with Animia is successful. Your ID: ${
+  }, your registration with Anaemia is successful. Your ID: ${
     beneficiary.short_id || 'N/A'
   }. Thank you for joining our health program.`;
   return await sendSMSToBeneficiary(beneficiary, message);

@@ -205,7 +205,7 @@ const FollowUp = ({navigation}) => {
       if (item.phone && isValidPhoneNumber(item.phone)) {
         try {
           const formattedPhone = formatPhoneNumber(item.phone);
-          const message = `Dear ${item.name}, your follow-up has been completed. Your next follow-up is scheduled for ${nextFollowUpFormatted}. Thank you for visiting Animia Health.`;
+          const message = `Dear ${item.name}, your follow-up has been completed. Your next follow-up is scheduled for ${nextFollowUpFormatted}. Thank you for visiting Anaemia Health.`;
 
           const smsSuccess = await sendSmartSMS(formattedPhone, message, true);
           if (smsSuccess) {
@@ -270,7 +270,7 @@ const FollowUp = ({navigation}) => {
       if (item.phone && isValidPhoneNumber(item.phone)) {
         try {
           const formattedPhone = formatPhoneNumber(item.phone);
-          const message = `Dear ${item.name}, your follow-up has been rescheduled to ${formattedDate}. Please visit on time. Thank you. - Animia Health`;
+          const message = `Dear ${item.name}, your follow-up has been rescheduled to ${formattedDate}. Please visit on time. Thank you. - Anaemia Health`;
 
           const smsSuccess = await sendSmartSMS(formattedPhone, message, true);
           if (smsSuccess) {
@@ -305,7 +305,7 @@ const FollowUp = ({navigation}) => {
         ? dayjs(item.follow_up_due).format('DD-MM-YYYY')
         : 'soon';
 
-      const message = `Dear ${item.name}, this is a reminder for your follow-up appointment scheduled for ${dueDate}. Please visit on time. Contact us if you have any questions. - Animia Health`;
+      const message = `Dear ${item.name}, this is a reminder for your follow-up appointment scheduled for ${dueDate}. Please visit on time. Contact us if you have any questions. - Anaemia Health`;
 
       const success = await sendSmartSMS(formattedPhone, message, true);
 
@@ -356,7 +356,7 @@ const FollowUp = ({navigation}) => {
                     ? dayjs(item.follow_up_due).format('DD-MM-YYYY')
                     : 'soon';
 
-                  const message = `Dear ${item.name}, this is a reminder for your follow-up appointment scheduled for ${dueDate}. Please visit on time. Contact us if you have any questions. - Animia Health`;
+                  const message = `Dear ${item.name}, this is a reminder for your follow-up appointment scheduled for ${dueDate}. Please visit on time. Contact us if you have any questions. - Anaemia Health`;
 
                   const success = await sendSmartSMS(
                     formattedPhone,

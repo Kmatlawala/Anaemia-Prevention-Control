@@ -80,7 +80,7 @@ const SMSPermissionRequest = ({visible, onPermissionGranted, onClose}) => {
             </View>
             <Text style={styles.title}>SMS Permission Required</Text>
             <Text style={styles.subtitle}>
-              Animia needs SMS permission to send healthcare notifications to
+              Anaemia needs SMS permission to send healthcare notifications to
               beneficiaries
             </Text>
           </View>
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.horizontal, 
+    paddingHorizontal: spacing.horizontal,
     paddingVertical: spacing.lg,
   },
   container: {

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const KEY = 'animia:user_role';
+const KEY = 'anaemia:user_role';
 
 export const getRole = async () => {
   try {
